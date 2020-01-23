@@ -2,9 +2,13 @@
 namespace wapmorgan\OpenApiGenerator\Scraper;
 
 use app\components\BaseJsonController;
+use ReflectionClass;
+use ReflectionMethod;
+use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResult;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResultController;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResultControllerAction;
+use Yii;
 
 class Yii2Scraper extends DefaultScrapper
 {
@@ -23,14 +27,17 @@ class Yii2Scraper extends DefaultScrapper
     public function scrape(): ScrapeResult
     {
         $directory = getcwd();
-        require_once $directory.'/vendor/yiisoft/yii2/Yii.php';
+        $this->initializeYiiAutoloader($directory);
 
         $directories = $this->getControllerDirectories($directory);
+
         list($total_actions, $controllers) = $this->getActionsList($directories);
 
-        ksort($controllers_list, SORT_NATURAL);
+        ksort($controllers, SORT_NATURAL);
 
         $result = new ScrapeResult();
+        $result->totalActions = 0;
+
         foreach ($controllers as $module_id => $module_controllers) {
             foreach ($module_controllers as $controller_class => $controller_configuration) {
                 /** @var BaseJsonController $controller_instance */
@@ -46,10 +53,11 @@ class Yii2Scraper extends DefaultScrapper
                     $controller_action_result->actionId = $controller_action_id;
                     $controller_action_result->actionControllerMethod = $controller_action_method;
                     $controller_result->actions[] = $controller_action_result;
+                    $result->totalActions++;
                 }
-            }
+                $result->controllers[] = $controller_result;
 
-            $result->controllers[] = $controller_result;
+            }
         }
 
         return $result;
@@ -75,7 +83,7 @@ class Yii2Scraper extends DefaultScrapper
                 $module_name = basename($module_dir);
 
                 if ($this->moduleNamePattern !== null && !preg_match($this->moduleNamePattern, $module_name)) {
-                    echo 'Skipping '.$module_name.PHP_EOL;
+                    $this->notice('Skipping '.$module_name, self::NOTICE_INFO);
                     continue;
                 }
 
@@ -92,6 +100,7 @@ class Yii2Scraper extends DefaultScrapper
     /**
      * @param array $directories
      * @return array
+     * @throws \ReflectionException
      */
     public function getActionsList(array $directories)
     {
@@ -106,6 +115,11 @@ class Yii2Scraper extends DefaultScrapper
 
                 foreach ($added_classes as $added_class) {
                     if (preg_match($this->controllerInModuleClassPattern, $added_class, $matches)) {
+
+                        // Повторная проверка имени модуля, чтобы исключить из генерации не связаные контроллеры
+                        if ($this->moduleNamePattern != null && !preg_match($this->moduleNamePattern, $matches['moduleId']))
+                            continue;
+
                         $module_id = str_replace('_', '.', $matches['moduleId']);
                         // Обработка псевдо-вложенных контроллеров - перевод CamelCase в путь camel/case
                         preg_match_all('~[A-Z][a-z]+~', $matches['controller'], $uriParts);
@@ -135,7 +149,46 @@ class Yii2Scraper extends DefaultScrapper
         return [$total_actions, $controllers_list];
     }
 
-    public function generateClassMethodsList($added_class, string $actionAsControllerMethodPattern)
+    /**
+     * @param string $class
+     * @param string $methodPattern
+     * @return array
+     * @throws \ReflectionException
+     */
+    public function generateClassMethodsList(string $class, string $methodPattern): array
     {
+        $actions = [];
+
+        $class_reflection = ReflectionsCollection::getClass($class);
+        foreach ($class_reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method_reflection) {
+            if (!preg_match($methodPattern, $method_reflection->getName(), $matches)) {
+                continue;
+            }
+            $action_uri = strtolower(substr($matches['action'], 0, 1)).substr($matches['action'], 1);
+
+            $doc_comment = $method_reflection->getDocComment();
+
+            if ($doc_comment === false) {
+                $this->notice('Method "'.$action_uri.'" of '
+                    .$method_reflection->getDeclaringClass()->getName()
+                    .' has no doc-block at all', self::NOTICE_WARNING);
+                continue;
+            }
+
+            $actions[$action_uri] = $method_reflection->getName();
+        }
+
+        ksort($actions, SORT_NATURAL);
+
+        return $actions;
+    }
+
+    /**
+     * @param $directory
+     */
+    protected function initializeYiiAutoloader($directory)
+    {
+        require_once $directory.'/vendor/yiisoft/yii2/Yii.php';
+        Yii::setAlias('@app', $directory);
     }
 }
