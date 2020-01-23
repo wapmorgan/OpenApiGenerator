@@ -1,0 +1,24 @@
+{
+    "name": "wapmorgan/openapi-generator",
+    "keywords": ["swagger", "openapi", "openapi-generator", "swagger-generator", "api", "documentation"],
+    "descripion": "",
+    "authors": [
+        {
+            "name": "wapmorgan",
+            "email": "wapmorgan@gmail.com",
+            "role": "developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.5.0",
+        "zircote/swagger-php": "^3.0",
+        "doctrine/annotations": "^1.6",
+        "phpdocumentor/reflection-docblock": "^4.3",
+        "phpspec/php-diff": "^1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "wapmorgan\\OpenApiGenerator\\": "src/"
+        }
+    }
+}
