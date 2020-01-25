@@ -2,14 +2,20 @@
 namespace wapmorgan\OpenApiGenerator\Generator;
 
 use Exception;
+use OpenApi\Annotations\Components;
 use OpenApi\Annotations\Info;
 use OpenApi\Annotations\OpenApi;
+use OpenApi\Annotations\SecurityScheme;
+use OpenApi\Annotations\Server;
+use OpenApi\Annotations\Tag;
 use ReflectionMethod;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
+use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
+use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResultController;
 
 class DefaultGenerator extends ErrorableObject
@@ -52,15 +58,20 @@ class DefaultGenerator extends ErrorableObject
     /**
      * @var callable|null
      */
-    protected $onControllerActionStartCallback;
+    protected $onPathStartCallback;
     /**
      * @var callable|null
      */
-    protected $onControllerActionEndCallback;
+    protected $onPathEndCallback;
     /**
-     * @var string Current module ID
+     * @var string Current specification ID
      */
     protected $currentSpecificationId;
+
+    /**
+     * @var OpenApi
+     */
+    protected $currentOpenApi;
 
     /**
      * @param Result $scrapeResult
@@ -75,7 +86,7 @@ class DefaultGenerator extends ErrorableObject
 
         $by_modules = [];
         foreach ($scrapeResult->specifications as $specification) {
-            $result->specifications[] = $this->generateSpecification($specification->version);
+            $result->specifications[] = $this->generateSpecification($specification);
         }
 
         $this->call($this->onEndCallback, [$result]);
@@ -144,22 +155,22 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param callable|null $onControllerActionStartCallback
+     * @param callable|null $onPathStartCallback
      * @return DefaultGenerator
      */
-    public function setOnControllerActionStartCallback(?callable $onControllerActionStartCallback): DefaultGenerator
+    public function setOnPathStartCallback(?callable $onPathStartCallback): DefaultGenerator
     {
-        $this->onControllerActionStartCallback = $onControllerActionStartCallback;
+        $this->onPathStartCallback = $onPathStartCallback;
         return $this;
     }
 
     /**
-     * @param callable|null $onControllerActionEndCallback
+     * @param callable|null $onPathEndCallback
      * @return DefaultGenerator
      */
-    public function setOnControllerActionEndCallback(?callable $onControllerActionEndCallback): DefaultGenerator
+    public function setOnPathEndCallback(?callable $onPathEndCallback): DefaultGenerator
     {
-        $this->onControllerActionEndCallback = $onControllerActionEndCallback;
+        $this->onPathEndCallback = $onPathEndCallback;
         return $this;
     }
 
@@ -174,66 +185,77 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param string|null $specificationId
-     * @param ScrapeResultController[] $controllers
-     * @return GeneratorResultSpecification
+     * @param ResultSpecification $specification
+     * @return OpenApi
      * @throws \ReflectionException
      */
-    protected function generateSpecification(?string $specificationId, array $controllers): GeneratorResultSpecification
+    protected function generateSpecification(ResultSpecification $specification): OpenApi
     {
-        $this->call($this->onSpecificationStartCallback, [$specificationId, $controllers]);
+        $this->call($this->onSpecificationStartCallback, [$specification]);
 
-        $this->currentSpecificationId = $specificationId;
+        $this->currentSpecificationId = $specification->version;
 
-        $result = new GeneratorResultSpecification();
-        $result->id = $specificationId;
-        $result->title = trim(sprintf($this->specificationTitlePattern, $specificationId));
-        $specification = new OpenApi([]);
-        $specification->info = new Info([
-            'title' => $result->title,
+        $openapi = new OpenApi([]);
+        $this->currentOpenApi = $openapi;
+
+        $openapi->info = new Info([
+            'title' => $specification->description,
+            'version' => $specification->version,
         ]);
 
-        /** @var ScrapeResultController $controller */
-        foreach ($controllers as $controller) {
-            $this->call($this->onControllerStartCallback, [$controller]);
-
-            foreach ($controller->actions as $controller_action) {
-                $this->call($this->onControllerActionStartCallback, [$controller, $controller_action]);
-
-                $action_reflection = ReflectionsCollection::getMethod($controller->class, $controller_action->actionControllerMethod);
-
-                // URL с контролером. Опускаем default-контроллер в адресе
-                $full_action_id = ($this->splitByModule && $this->embedModuleInAction && $specificationId !== null
-                        ? $controller->moduleId
-                        : null)
-                    .($controller->controllerId !== 'default' ? '/' . $controller->controllerId : null)
-                    . '/' . $controller_action->actionId;
-
-                try {
-                    $this->generateAnnotationForAction($action_reflection, $controller, $full_action_id);
-                } catch (Exception $e) {
-                    $this->notice('Error when working on '.$specificationId.':'.$controller->controllerId
-                        .':'.$controller_action->actionId.': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', static::NOTICE_ERROR);
-                    $this->notice($e->getTraceAsString(), static::NOTICE_ERROR);
-                }
-
-                $this->call($this->onControllerActionEndCallback, [$controller, $controller_action]);
-            }
-
-            $this->call($this->onControllerEndCallback, [$controller]);
+        $openapi->servers = [];
+        foreach ($specification->servers as $server) {
+            $openapi->servers[] = new Server([
+                'url' => $server->url,
+                'description' => $server->description,
+            ]);
         }
 
-        $this->call($this->onSpecificationEndCallback, [$controllers]);
+        $openapi->tags = [];
+        foreach ($specification->tags as $tag) {
+            $openapi->tags[] = new Tag([
+                'name' => $tag->name,
+                'description' => $tag->description,
+                'externalDocs' => $tag->externalDocs,
+            ]);
+        }
 
-        $result->specification = $specification;
+        $openapi->components = new Components([]);
+        $openapi->components->securitySchemes = [];
+        foreach ($specification->securitySchemes as $securityScheme) {
+            $openapi->components->securitySchemes[] = new SecurityScheme([
+                'securityScheme' => $securityScheme->id,
+                'type' => $securityScheme->type,
+                'description' => $securityScheme->description,
+                'name' => $securityScheme->name,
+                'in' => $securityScheme->in,
+            ]);
+        }
 
-        return $result;
+        foreach ($specification->paths as $path) {
+            $this->call($this->onPathStartCallback, [$path]);
+
+            try {
+                $this->generateAnnotationForPath($path);
+            } catch (Exception $e) {
+                $this->notice('Error when working on '.$specification->version.':'.$path->id
+                    .': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', static::NOTICE_ERROR);
+                $this->notice($e->getTraceAsString(), static::NOTICE_ERROR);
+            }
+
+            $this->call($this->onPathEndCallback, [$path]);
+        }
+
+        $this->call($this->onSpecificationEndCallback, [$specification]);
+
+        return $openapi;
     }
 
-    protected function generateAnnotationForAction(
-        ReflectionMethod $action_reflection,
-        ScrapeResultController $controller,
-        string $fullActionId)
+    /**
+     * @param ResultPath $path
+     */
+    protected function generateAnnotationForPath(
+        ResultPath $path)
     {
     }
 }

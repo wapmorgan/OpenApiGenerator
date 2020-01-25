@@ -1,7 +1,9 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
-class ResultTag
+use wapmorgan\OpenApiGenerator\Initable;
+
+class ResultTag extends Initable
 {
     /**
      * @var string Name of tag

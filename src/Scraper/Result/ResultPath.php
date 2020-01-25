@@ -14,6 +14,11 @@ class ResultPath
     public $securitySchemes = [];
 
     /**
+     * @var string[] List of tags for path
+     */
+    public $tags = [];
+
+    /**
      * @var string HTTP method for path
      */
     public $httpMethod = 'GET';
