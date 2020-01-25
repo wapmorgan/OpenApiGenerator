@@ -9,16 +9,11 @@ use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResult;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResultController;
 
 class DefaultGenerator extends ErrorableObject
 {
-    /**
-     * @var string '%s' will be replaced with Specification ID (if present) and trimmed for spaces
-     */
-    public $specificationTitlePattern = 'API Specification %s';
-
     /**
      * @var bool Should be different modules saved as separate specifications or not
      */
@@ -68,31 +63,19 @@ class DefaultGenerator extends ErrorableObject
     protected $currentSpecificationId;
 
     /**
-     * @param ScrapeResult $scrapeResult
+     * @param Result $scrapeResult
      * @return GeneratorResult
      * @throws \ReflectionException
      */
-    public function generate(ScrapeResult $scrapeResult): GeneratorResult
+    public function generate(Result $scrapeResult): GeneratorResult
     {
-        ksort($scrapeResult->controllers, SORT_NATURAL);
-
-        $this->call($this->onStartCallback, [$scrapeResult->totalActions]);
+        $this->call($this->onStartCallback, [$scrapeResult]);
 
         $result = new GeneratorResult();
 
-        // if modules used, split list
-        if ($this->splitByModule) {
-            $by_modules = [];
-            foreach ($scrapeResult->controllers as $controller) {
-                $by_modules[$controller->moduleId][] = $controller;
-            }
-
-
-            foreach ($by_modules as $module => $controllers) {
-                $result->specifications[] = $this->generateSpecification($module, $controllers);
-            }
-        } else {
-            $result->specifications = [$this->generateSpecification(null, $scrapeResult->controllers)];
+        $by_modules = [];
+        foreach ($scrapeResult->specifications as $specification) {
+            $result->specifications[] = $this->generateSpecification($specification->version);
         }
 
         $this->call($this->onEndCallback, [$result]);
@@ -230,8 +213,8 @@ class DefaultGenerator extends ErrorableObject
                     $this->generateAnnotationForAction($action_reflection, $controller, $full_action_id);
                 } catch (Exception $e) {
                     $this->notice('Error when working on '.$specificationId.':'.$controller->controllerId
-                        .':'.$controller_action->actionId.': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', self::NOTICE_ERROR);
-                    $this->notice($e->getTraceAsString(), self::NOTICE_ERROR);
+                        .':'.$controller_action->actionId.': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', static::NOTICE_ERROR);
+                    $this->notice($e->getTraceAsString(), static::NOTICE_ERROR);
                 }
 
                 $this->call($this->onControllerActionEndCallback, [$controller, $controller_action]);
