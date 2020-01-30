@@ -3,66 +3,65 @@ namespace wapmorgan\OpenApiGenerator\Generator;
 
 use Exception;
 use OpenApi\Annotations\Components;
+use OpenApi\Annotations\ExternalDocumentation;
 use OpenApi\Annotations\Info;
 use OpenApi\Annotations\OpenApi;
+use OpenApi\Annotations\Operation;
+use OpenApi\Annotations\PathItem;
 use OpenApi\Annotations\SecurityScheme;
 use OpenApi\Annotations\Server;
 use OpenApi\Annotations\Tag;
-use ReflectionMethod;
+use phpDocumentor\Reflection\DocBlockFactory;
+use ReflectionException;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
-use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ScrapeResultController;
 
 class DefaultGenerator extends ErrorableObject
 {
     /**
-     * @var bool Should be different modules saved as separate specifications or not
-     */
-    public $splitByModule = true;
-
-    /**
-     * @var bool Should be module ID embedded in action (in path) or should be in server's url.
-     * Works only when [[$splitByModule]] is enabled.
-     */
-    public $embedModuleInAction = true;
-
-    /**
      * @var callable|null
      */
     protected $onStartCallback;
+
     /**
      * @var callable|null
      */
     protected $onEndCallback;
+
     /**
      * @var callable|null
      */
     protected $onSpecificationStartCallback;
+
     /**
      * @var callable|null
      */
     protected $onSpecificationEndCallback;
+
     /**
      * @var callable|null
      */
     protected $onControllerStartCallback;
+
     /**
      * @var callable|null
      */
     protected $onControllerEndCallback;
+
     /**
      * @var callable|null
      */
     protected $onPathStartCallback;
+
     /**
      * @var callable|null
      */
     protected $onPathEndCallback;
+
     /**
      * @var string Current specification ID
      */
@@ -74,9 +73,40 @@ class DefaultGenerator extends ErrorableObject
     protected $currentOpenApi;
 
     /**
+     * @var DocBlockFactory
+     */
+    protected $docBlockFactory;
+
+    /**
+     * @var PathDescriber
+     */
+    private $pathDescriber;
+
+    /**
+     * @var TypeDescriber
+     */
+    private $typeDescriber;
+
+    /**
+     * @var ClassDescriber
+     */
+    private $classDescriber;
+
+    /**
+     * DefaultGenerator constructor.
+     */
+    public function __construct()
+    {
+        $this->docBlockFactory = DocBlockFactory::createInstance();
+        $this->pathDescriber = new PathDescriber($this);
+        $this->typeDescriber = new TypeDescriber($this);
+        $this->classDescriber = new ClassDescriber($this);
+    }
+
+    /**
      * @param Result $scrapeResult
      * @return GeneratorResult
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function generate(Result $scrapeResult): GeneratorResult
     {
@@ -84,7 +114,6 @@ class DefaultGenerator extends ErrorableObject
 
         $result = new GeneratorResult();
 
-        $by_modules = [];
         foreach ($scrapeResult->specifications as $specification) {
             $result->specifications[] = $this->generateSpecification($specification);
         }
@@ -187,7 +216,7 @@ class DefaultGenerator extends ErrorableObject
     /**
      * @param ResultSpecification $specification
      * @return OpenApi
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     protected function generateSpecification(ResultSpecification $specification): OpenApi
     {
@@ -216,7 +245,9 @@ class DefaultGenerator extends ErrorableObject
             $openapi->tags[] = new Tag([
                 'name' => $tag->name,
                 'description' => $tag->description,
-                'externalDocs' => $tag->externalDocs,
+                'externalDocs' => ($tag->externalDocs !== null
+                    ? new ExternalDocumentation(['url' => $tag->externalDocs])
+                    : null),
             ]);
         }
 
@@ -252,10 +283,95 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param ResultPath $path
+     * @param ResultPath $resultPath
+     * @return string
+     * @throws ReflectionException
      */
-    protected function generateAnnotationForPath(
-        ResultPath $path)
+    protected function generateAnnotationForPath(ResultPath $resultPath)
     {
+        $path_reflection = ReflectionsCollection::getMethod($resultPath->actionCallback[0], $resultPath->actionCallback[1]);
+
+        $doc_block = $this->docBlockFactory->create($path_reflection->getDocComment());
+
+        $path = new PathItem([
+            'path' => $resultPath->id,
+            'operationId' => $resultPath->id,
+            'summary' => str_replace('"', '\'', $doc_block->getSummary()),
+        ]);
+
+        $operation_class = '\OpenApi\Annotations\\'.ucfirst($resultPath->httpMethod);
+
+        /** @var Operation $path_method */
+        $path_method = $path->{strtolower($resultPath->httpMethod)} = new $operation_class([
+            'description' => $this->pathDescriber->generateAnnotationForPathDescription($doc_block),
+            'tags' => [],
+        ]);
+
+        foreach ($resultPath->tags as $tag) {
+            $path_method->tags[] = $tag;
+        }
+
+        if (!empty($resultPath->securitySchemes)) {
+            $path_method->security = [];
+
+            foreach ($resultPath->securitySchemes as $securityScheme) {
+                $path_method->security[] = $securityScheme;
+            }
+        }
+
+        $annotation_blocks[] = $this->pathDescriber->generationAnnotationForActionResponses($path_reflection, $doc_block, $resultPath->pathResultWrapper);
+
+        $annotation_blocks = array_merge($annotation_blocks, $this->generateAnnotationBlocksForActionParameters($actionReflection, $doc_block));
+
+        $description_postfix = null;
+        if ($doc_block->hasTag('link')) {
+            $link_tags = $doc_block->getTagsByName('link');
+            if (count($link_tags) === 1)
+                $annotation_blocks[] = '@OA\\ExternalDocumentation(url="' . $link_tags[0]->getLink() . '", description="' . $link_tags[0]->getDescription() . '")';
+            else {
+                $description_postfix .= PHP_EOL.PHP_EOL;
+                foreach ($link_tags as $link_tag) {
+                    $description_postfix .= '- '.$link_tag->getLink().' - '.$link_tag->getDescription().PHP_EOL;
+                }
+            }
+        }
+
+        $annotation_blocks[] = $this->generateAnnotationForActionDescription($doc_block, $description_postfix);
+
+        return '@OA\\'./*(isset($parameters) ? 'Post' : */'Get'/*)*/.'('.PHP_EOL
+            .implode(','.PHP_EOL, $this->wrapLines($annotation_blocks, '    ')).PHP_EOL
+            .')';
+    }
+
+    /**
+     * @return DocBlockFactory
+     */
+    public function getDocBlockFactory(): DocBlockFactory
+    {
+        return $this->docBlockFactory;
+    }
+
+    /**
+     * @return PathDescriber
+     */
+    public function getPathDescriber(): PathDescriber
+    {
+        return $this->pathDescriber;
+    }
+
+    /**
+     * @return TypeDescriber
+     */
+    public function getTypeDescriber(): TypeDescriber
+    {
+        return $this->typeDescriber;
+    }
+
+    /**
+     * @return ClassDescriber
+     */
+    public function getClassDescriber(): ClassDescriber
+    {
+        return $this->classDescriber;
     }
 }

@@ -1,7 +1,7 @@
 <?php
 namespace wapmorgan\OpenApiGenerator;
 
-class Initable
+class InitableObject
 {
     public function __construct(array $options = [])
     {

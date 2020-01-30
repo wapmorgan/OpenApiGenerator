@@ -1,6 +1,8 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
+use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
+
 class ResultSpecification
 {
     /**

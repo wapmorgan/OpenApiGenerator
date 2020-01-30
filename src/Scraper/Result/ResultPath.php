@@ -1,6 +1,8 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
+use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
+
 class ResultPath
 {
     /**
@@ -27,4 +29,9 @@ class ResultPath
      * @var callable Callback that this path reacts
      */
     public $actionCallback;
+
+    /**
+     * @var DefaultPathResultWrapper|null Path result wrapper
+     */
+    public $pathResultWrapper;
 }

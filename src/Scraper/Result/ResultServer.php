@@ -1,9 +1,9 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
-use wapmorgan\OpenApiGenerator\Initable;
+use wapmorgan\OpenApiGenerator\InitableObject;
 
-class ResultServer extends Initable
+class ResultServer extends InitableObject
 {
     /**
      * @var string URL of server

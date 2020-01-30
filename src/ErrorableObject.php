@@ -43,7 +43,7 @@ class ErrorableObject
      * @param $message
      * @throws \Exception
      */
-    protected function error(string $message)
+    public function error(string $message)
     {
         if ($this->onErrorCallback !== null) {
             call_user_func($this->onErrorCallback, $message);
@@ -56,7 +56,7 @@ class ErrorableObject
      * @param string $message
      * @param int $level
      */
-    protected function notice(string $message, int $level)
+    public function notice(string $message, int $level)
     {
         if ($this->onNoticeCallback !== null) {
             call_user_func($this->onNoticeCallback, $message, $level);

@@ -1,9 +1,9 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
-use wapmorgan\OpenApiGenerator\Initable;
+use wapmorgan\OpenApiGenerator\InitableObject;
 
-class ResultSecurityScheme extends Initable
+class ResultSecurityScheme extends InitableObject
 {
     /**
      * @var string ID of security scheme
