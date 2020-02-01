@@ -1,16 +1,23 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Generator;
 
+use OpenApi\Annotations\ExternalDocumentation;
 use OpenApi\Annotations\Items;
 use OpenApi\Annotations\MediaType;
+use OpenApi\Annotations\Operation;
+use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\Response;
 use OpenApi\Annotations\Schema;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Link;
+use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
 use ReflectionException;
 use ReflectionMethod;
+use ReflectionParameter;
+use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
+use yii\helpers\Console;
 
 class PathDescriber
 {
@@ -18,6 +25,8 @@ class PathDescriber
      * @var DefaultGenerator
      */
     protected $generator;
+
+    protected $commonParameters = [];
 
     /**
      * TypeDescriber constructor.
@@ -30,9 +39,10 @@ class PathDescriber
 
     /**
      * @param DocBlock $docBlock
-     * @return string
+     * @param Operation $pathOperation
+     * @return void
      */
-    public function generateAnnotationForPathDescription(DocBlock $docBlock): array
+    public function generatePathDescription(Operation $pathOperation, DocBlock $docBlock): void
     {
         $description = [];
 
@@ -48,12 +58,17 @@ class PathDescriber
             if (count($link_tags) > 1) {
                 /** @var Link $link_tag */
                 foreach ($link_tags as $link_tag) {
-                    $description[] = $link_tag->getLink() . (!empty($link_tag->getDescription()) ? $link_tag->getDescription() : null);
+                    $description[] = $link_tag->getLink() . (!empty($link_tag->getDescription()) ? $link_tag->getDescription() : '');
                 }
+            } else {
+                $pathOperation->externalDocs = new ExternalDocumentation([
+                    'url' => $link_tags[0]->getLink(),
+                    'description' => (!empty($link_tags[0]->getDescription()) ? (string)$link_tags[0]->getDescription() : ''),
+                ]);
             }
         }
 
-        return implode("\n", $description);
+        $pathOperation->description = implode("\n", $description);
     }
 
     /**
@@ -63,7 +78,7 @@ class PathDescriber
      * @return Schema|null
      * @throws ReflectionException
      */
-    public function generationAnnotationForActionResponses(
+    public function generationPathMethodResponses(
         ReflectionMethod $actionReflection,
         DocBlock $docBlock,
         ?DefaultPathResultWrapper $pathResultWrapper
@@ -113,17 +128,16 @@ class PathDescriber
             ]);
         }
 
-        $response = new Response([
+        return new Response([
             'response' => 200,
             'description' => 'Successful response',
             'content' => [
-                'application/json' => new MediaType([
+                new MediaType([
+                    'mediaType' => 'application/json',
                     'schema' => $result_block,
                 ])
             ],
         ]);
-
-        return $response;
     }
 
     /**
@@ -161,33 +175,46 @@ class PathDescriber
             list($result_spec, $result_type_description) = explode(' ', $result_spec, 2);
         }
 
-        $normalized_return_spec = strtolower(strtolower($result_spec));
+        $schema = $this->generator->getTypeDescriber()->generateSchemaForType($declaringClass, $result_spec, null);
+        if (!empty($result_type_description)) {
+            $schema->description .= PHP_EOL.$result_type_description;
+        }
+        return $schema;
+    }
 
-        // an array
-        if ($result_spec === 'array') {
-            return new Schema([
-                'type' => 'array',
-                'items' => new Items([
-                    'type' => 'object',
-                ]),
-            ]);
+    /**
+     * @param ReflectionMethod $actionReflection
+     * @param DocBlock $docBlock
+     * @return Parameter[]
+     * @throws ReflectionException
+     */
+    public function generatePathOperationParameters(ReflectionMethod $actionReflection, DocBlock $docBlock): array
+    {
+        /** @var array<string, Param> $doc_block_parameters */
+        $doc_block_parameters = [];
+
+        /** @var Param $action_parameter */
+        foreach ($docBlock->getTagsByName('param') as $action_parameter) {
+            $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
         }
 
-        // an object
-        if (in_array($normalized_return_spec, ['stdclass', 'object'], true)) {
-            return new Schema([
-                'type' => 'object',
-            ]);
+        $parameters = [];
+
+        // Generation @OA\Parameter's
+        if ($actionReflection->getNumberOfParameters() > 0) {
+            foreach ($actionReflection->getParameters() as $parameter) {
+                $parameter_annotation = $this->generateSchemaForParameter(
+                    $parameter,
+                    $doc_block_parameters[$parameter->getName()] ?? null
+                );
+
+                if ($parameter_annotation !== null) {
+                    $parameters[] = $parameter_annotation;
+                }
+            }
         }
 
-        // primitive types has simple schema
-        if (in_array($normalized_return_spec, $this->generator->getTypeDescriber()->primitiveTypes, true)) {
-            return $this->generateSchemaForPrimitiveReturnBlock($declaringClass, $normalized_return_spec, $result_type_description);
-        }
-
-        // сложный тип (объект)
-        return $this->generateSchemaForComplexPathResult($result_spec,
-            $result_type_description, $declaringClass);
+        return $parameters;
     }
 
     /**
@@ -213,5 +240,92 @@ class PathDescriber
         if (!empty($typeDescription))
             $schema->description = $typeDescription;
         return $schema;
+    }
+
+    /**
+     * @param ReflectionParameter $pathParameter
+     * @param Param|null $docBlockParameter
+     * @return Parameter|null
+     * @throws ReflectionException
+     * @throws \Exception
+     */
+    public function generateSchemaForParameter(
+        ReflectionParameter $pathParameter,
+        ?Param $docBlockParameter = null
+    ): ?Parameter
+    {
+        $is_nullable_parameter = $is_required_parameter = false;
+
+        if ($docBlockParameter === null) {
+            $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
+                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
+                .'" has no doc-block at all, skipping', ErrorableObject::NOTICE_ERROR);
+            return null;
+        }
+
+        if (empty((string)$docBlockParameter->getType())) {
+            $this->generator->error('Param "'.$pathParameter->getName().'" of "'
+                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
+                .'" has doc-block, but type is not defined. Skipping...');
+            return null;
+        }
+
+        if ($pathParameter->isOptional()) {
+            if (($default_value_constant = $pathParameter->getDefaultValueConstantName()) === null)
+                $is_nullable_parameter = true;
+            else {
+                // if looks like static::* or self::*
+                if (preg_match('~^(self|static)\:\:([a-zA-Z_0-9]+)$~', $default_value_constant, $default_value_constant_parts)) {
+                    $defaultValue = constant($pathParameter->getDeclaringClass()->getName().'::'.$default_value_constant_parts[2]);
+                } else if (defined($default_value_constant)) {
+                    $defaultValue = constant($default_value_constant);
+                } else {
+                    $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
+                        .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
+                        .'" has unexpected default value: "'.$default_value_constant.'"', ErrorableObject::NOTICE_INFO);
+                }
+
+            }
+        } else
+            $is_required_parameter = true;
+
+
+        if ($docBlockParameter !== null && $docBlockParameter->getDescription()) {
+            $description = (string)$docBlockParameter->getDescription();
+        }
+
+        if (!isset($description) || empty($description)) {
+            $description = ($this->commonParameters[$pathParameter->getName()] ?? '');
+        }
+
+        $schema = $this->generator->getTypeDescriber()->generateSchemaForType(
+            $pathParameter->getDeclaringClass()->getName(),
+            $docBlockParameter !== null ? $docBlockParameter->getType() : null,
+            $defaultValue ?? null,
+            $is_nullable_parameter);
+        ;
+
+        $parameter = new Parameter([
+            'name' => $pathParameter->getName(),
+            'in' => 'query',
+            'description' => $description,
+            'schema' => $schema,
+        ]);
+
+        if ($is_required_parameter && !$is_nullable_parameter)
+            $parameter->required = true;
+
+        return $parameter;
+    }
+
+    /**
+     * @param $name
+     * @param $description
+     * @return $this
+     */
+    public function setCommonParameter($name, $description)
+    {
+        $this->commonParameters[$name] = $description;
+        return $this;
     }
 }

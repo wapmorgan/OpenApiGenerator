@@ -15,6 +15,7 @@ use phpDocumentor\Reflection\DocBlockFactory;
 use ReflectionException;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
+use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
@@ -115,7 +116,11 @@ class DefaultGenerator extends ErrorableObject
         $result = new GeneratorResult();
 
         foreach ($scrapeResult->specifications as $specification) {
-            $result->specifications[] = $this->generateSpecification($specification);
+            $result->specifications[] = new GeneratorResultSpecification([
+                'id' => $specification->version,
+                'title' => $specification->description,
+                'specification' => $this->generateSpecification($specification),
+            ]);
         }
 
         $this->call($this->onEndCallback, [$result]);
@@ -263,11 +268,13 @@ class DefaultGenerator extends ErrorableObject
             ]);
         }
 
+        $openapi->paths = [];
+
         foreach ($specification->paths as $path) {
             $this->call($this->onPathStartCallback, [$path]);
 
             try {
-                $this->generateAnnotationForPath($path);
+                $openapi->paths[] = $this->generateAnnotationForPath($path);
             } catch (Exception $e) {
                 $this->notice('Error when working on '.$specification->version.':'.$path->id
                     .': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', static::NOTICE_ERROR);
@@ -284,10 +291,10 @@ class DefaultGenerator extends ErrorableObject
 
     /**
      * @param ResultPath $resultPath
-     * @return string
+     * @return PathItem
      * @throws ReflectionException
      */
-    protected function generateAnnotationForPath(ResultPath $resultPath)
+    protected function generateAnnotationForPath(ResultPath $resultPath): PathItem
     {
         $path_reflection = ReflectionsCollection::getMethod($resultPath->actionCallback[0], $resultPath->actionCallback[1]);
 
@@ -295,17 +302,18 @@ class DefaultGenerator extends ErrorableObject
 
         $path = new PathItem([
             'path' => $resultPath->id,
-            'operationId' => $resultPath->id,
             'summary' => str_replace('"', '\'', $doc_block->getSummary()),
         ]);
 
-        $operation_class = '\OpenApi\Annotations\\'.ucfirst($resultPath->httpMethod);
+        $operation_class = '\OpenApi\Annotations\\'.ucfirst(strtolower($resultPath->httpMethod));
 
         /** @var Operation $path_method */
         $path_method = $path->{strtolower($resultPath->httpMethod)} = new $operation_class([
-            'description' => $this->pathDescriber->generateAnnotationForPathDescription($doc_block),
+            'operationId' => $resultPath->id.'-'.$resultPath->httpMethod,
             'tags' => [],
         ]);
+
+        $this->pathDescriber->generatePathDescription($path_method, $doc_block);
 
         foreach ($resultPath->tags as $tag) {
             $path_method->tags[] = $tag;
@@ -315,32 +323,16 @@ class DefaultGenerator extends ErrorableObject
             $path_method->security = [];
 
             foreach ($resultPath->securitySchemes as $securityScheme) {
-                $path_method->security[] = $securityScheme;
+                $path_method->security[] = [$securityScheme => []];
             }
         }
 
-        $annotation_blocks[] = $this->pathDescriber->generationAnnotationForActionResponses($path_reflection, $doc_block, $resultPath->pathResultWrapper);
+        $path_method->responses = [
+            $this->pathDescriber->generationPathMethodResponses($path_reflection, $doc_block, $resultPath->pathResultWrapper)
+        ];
+        $path_method->parameters = $this->pathDescriber->generatePathOperationParameters($path_reflection, $doc_block);
 
-        $annotation_blocks = array_merge($annotation_blocks, $this->generateAnnotationBlocksForActionParameters($actionReflection, $doc_block));
-
-        $description_postfix = null;
-        if ($doc_block->hasTag('link')) {
-            $link_tags = $doc_block->getTagsByName('link');
-            if (count($link_tags) === 1)
-                $annotation_blocks[] = '@OA\\ExternalDocumentation(url="' . $link_tags[0]->getLink() . '", description="' . $link_tags[0]->getDescription() . '")';
-            else {
-                $description_postfix .= PHP_EOL.PHP_EOL;
-                foreach ($link_tags as $link_tag) {
-                    $description_postfix .= '- '.$link_tag->getLink().' - '.$link_tag->getDescription().PHP_EOL;
-                }
-            }
-        }
-
-        $annotation_blocks[] = $this->generateAnnotationForActionDescription($doc_block, $description_postfix);
-
-        return '@OA\\'./*(isset($parameters) ? 'Post' : */'Get'/*)*/.'('.PHP_EOL
-            .implode(','.PHP_EOL, $this->wrapLines($annotation_blocks, '    ')).PHP_EOL
-            .')';
+        return $path;
     }
 
     /**

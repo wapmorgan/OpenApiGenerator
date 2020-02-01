@@ -2,8 +2,9 @@
 namespace wapmorgan\OpenApiGenerator\Generator\Result;
 
 use OpenApi\Annotations\OpenApi;
+use wapmorgan\OpenApiGenerator\InitableObject;
 
-class GeneratorResultSpecification
+class GeneratorResultSpecification extends InitableObject
 {
     /**
      * @var string Title of specification

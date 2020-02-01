@@ -11,10 +11,20 @@ use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 
 class ClassDescriber
 {
+    public const CLASS_VIRTUAL_PROPERTIES = 1,
+        CLASS_PUBLIC_PROPERTIES = 2;
+
     /**
      * @var DefaultGenerator
      */
     protected $generator;
+
+    /**
+     * @var array List of base classes and rules for generating properties of them
+     */
+    protected $classesDescribingOptions = [
+        null => [self::CLASS_PUBLIC_PROPERTIES, self::CLASS_VIRTUAL_PROPERTIES],
+    ];
 
     /**
      * TypeDescriber constructor.
@@ -26,12 +36,12 @@ class ClassDescriber
     }
 
     /**
-     * @param $class
+     * @param string $class
      * @return Schema
      * @throws \ReflectionException
      * @throws \Exception
      */
-    public function generateSchemaForClass($class)
+    public function generateSchemaForClass($class): ?Schema
     {
         $schema = new Schema([
             'type' => 'object',
@@ -46,12 +56,15 @@ class ClassDescriber
             return null;
         }
 
+        $describing_rules = $this->getDescribingRulesForClass($class);
+
         // virtual fields
-        if (($doc_text = $objectReflection->getDocComment()) !== false) {
+        if (in_array(self::CLASS_VIRTUAL_PROPERTIES, $describing_rules, true) && ($doc_text = $objectReflection->getDocComment()) !== false) {
             $doc = $this->generator->getDocBlockFactory()->create($doc_text);
             if ($doc->hasTag('property')) {
                 /** @var PropertyDocBlock $object_field */
                 foreach ($doc->getTagsByName('property') as $object_field) {
+                    $is_nullable_property = false;
                     $properties[$object_field->getVariableName()] = $this->generateAnnotationForObjectVirtualProperty($object_field, $class, $is_nullable_property);
                     if (!$is_nullable_property) {
                         $required_fields[] = $object_field->getVariableName();
@@ -62,14 +75,25 @@ class ClassDescriber
         }
 
         // explicit fields
-        foreach ($objectReflection->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
-            $properties[$propertyReflection->getName()] = $this->generateAnnotationForObjectProperty($propertyReflection);
-            $required_fields[] = $propertyReflection->getName();
+        if (in_array(self::CLASS_PUBLIC_PROPERTIES, $describing_rules, true)) {
+            foreach ($objectReflection->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
+                $properties[$propertyReflection->getName()] = $this->generateAnnotationForObjectProperty($propertyReflection);
+                $required_fields[] = $propertyReflection->getName();
+            }
         }
 
         if (!empty($required_fields)) {
-            $schema->required = $required_fields;
+            $schema->required = array_values(array_unique($required_fields));
         }
+
+        if (!empty($properties)) {
+            $schema->properties = [];
+
+            foreach ($properties as $property) {
+                $schema->properties[] = $property;
+            }
+        }
+
 
         return $schema;
     }
@@ -89,17 +113,17 @@ class ClassDescriber
     {
         /** @var PropertyAnnotation $property */
         $property = $this->generator->getTypeDescriber()->generateSchemaForType(
-            $propertyTag->getType(),
             $declaringClass,
+            $propertyTag->getType(),
             null,
             $isNullable,
-            true);
+            PropertyAnnotation::class);
 
         $property->property = $propertyTag->getVariableName();
 
         // description
         if ($propertyTag->getDescription() !== null) {
-            $property->description = $propertyTag->getDescription();
+            $property->description = (string)$propertyTag->getDescription();
         }
 
         return $property;
@@ -112,19 +136,6 @@ class ClassDescriber
      */
     protected function generateAnnotationForObjectProperty(ReflectionProperty $propertyReflection): PropertyAnnotation
     {
-        // type
-        if (isset($doc_block) && $doc_block->getType() !== null) {
-            /** @var PropertyAnnotation $property */
-            $property = $this->generator->getTypeDescriber()->generateSchemaForType(
-                $doc_block->getType(),
-                $propertyReflection->getDeclaringClass()->getName(),
-                null,
-                $isNullable,
-                true);
-        } else {
-            $property = new PropertyAnnotation([]);
-        }
-
         $doc_comment = $propertyReflection->getDocComment();
         if ($doc_comment === false) {
             $this->generator->notice('Property "'.$propertyReflection->getName().'" of "'
@@ -143,14 +154,55 @@ class ClassDescriber
             }
         }
 
+        // type
+        if (isset($doc_block) && $doc_block->getType() !== null) {
+            $isNullable = false;
+            /** @var PropertyAnnotation $property */
+            $property = $this->generator->getTypeDescriber()->generateSchemaForType(
+                $propertyReflection->getDeclaringClass()->getName(),
+                $doc_block->getType(),
+                null,
+                $isNullable,
+                PropertyAnnotation::class);
+        } else {
+            $property = new PropertyAnnotation([]);
+        }
+
 
         $property->property = $propertyReflection->getName();
 
         // description
         if (isset($doc_block)) {
-            $property->description = $doc_block->getDescription();
+            $property->description = (string)$doc_block->getDescription();
         }
 
         return $property;
+    }
+
+    /**
+     * @param string|null $class
+     * @param array $options
+     */
+    public function setClassDescribingOptions(?string $class, array $options = [])
+    {
+        $this->classesDescribingOptions[$class] = $options;
+    }
+
+    /**
+     * @param string $class
+     * @return array
+     */
+    public function getDescribingRulesForClass(string $class): array
+    {
+        $rules = array_reverse($this->classesDescribingOptions);
+        foreach ($rules as $ruleClass => $ruleOptions) {
+            if ($ruleClass === null) continue;
+
+            if (is_subclass_of($class, $ruleClass)) {
+                return $ruleOptions;
+            }
+        }
+
+        return $this->classesDescribingOptions[null];
     }
 }

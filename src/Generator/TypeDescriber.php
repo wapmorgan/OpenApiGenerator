@@ -1,11 +1,14 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Generator;
 
+use OpenApi\Annotations\AbstractAnnotation;
 use OpenApi\Annotations\Items;
+use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\Property;
 use OpenApi\Annotations\Schema;
 use ReflectionException;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
+use const OpenApi\Annotations\UNDEFINED;
 
 class TypeDescriber
 {
@@ -22,7 +25,8 @@ class TypeDescriber
     /**
      * @var array
      */
-    public $primitiveTypes = ['object', 'mixed', 'void', 'null', 'string', 'bool', 'int', 'integer', 'float', 'boolean'];
+    public $primitiveTypes = ['void', 'null', 'string', 'bool', 'int', 'integer', 'float', 'boolean'];
+    public $simpleTypes = ['object', 'array', 'stdclass', 'mixed'];
 
     /**
      * TypeDescriber constructor.
@@ -38,7 +42,7 @@ class TypeDescriber
      * @param string|null $typeSpecification Тип (скалярный или сложный)
      * @param string|array|null $defaultValue
      * @param bool $isNullableType
-     * @param bool $asProperty
+     * @param string|null $schemaType
      * @return Schema|Property
      * @throws ReflectionException
      */
@@ -47,10 +51,9 @@ class TypeDescriber
         ?string $typeSpecification,
         $defaultValue,
         &$isNullableType = false,
-        $asProperty = false
-    ): ?string
+        ?string $schemaType = null
+    ): ?Schema
     {
-        $schema_blocks = [];
         $is_iterable_type = false;
 
         // Does not make sense to generate empty @OA\Schema
@@ -78,51 +81,49 @@ class TypeDescriber
                         $declaringClass, $subtypeSpecification, $defaultValue, $isNullableType);
                 }
 
-                $type_schemas_content = 'oneOf={'.implode(', ', $sub_type_schemas).'}';
-                return $asProperty
-                    ? '@OA\\Schema(' . $type_schemas_content . ')'
-                    : $type_schemas_content;
+                if ($schemaType !== null && $schemaType !== Schema::class) {
+                    if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class)
+                        throw new \RuntimeException('Invalid target Schema-class: ' . $schemaType);
+                    switch ($schemaType) {
+//                        case Property::class:
+//                            return new Property([
+//                                'schema' => new Schema([
+//                                    'oneOf' => $sub_type_schemas,
+//                                ]),
+//                            ]);
+                        default:
+                            return new $schemaType([
+                                'oneOf' => $sub_type_schemas,
+                            ]);
+                    }
+                }
             }
         }
 
-//        // hack
-//        if ($typeSpecification === 'null') {
-//            $typeSpecification = 'mixed';
-//            $isNullableType = true;
-//        }
-
-        // remove brackets from specification
+        // remove brackets from iterable specification
         if (substr($typeSpecification, -2) === '[]') {
             $typeSpecification = substr($typeSpecification, 0, -2);
             $is_iterable_type = true;
         }
 
-//        // hack 2
-//        if ($typeSpecification === 'array') {
-//            $typeSpecification = 'object';
-//            $is_iterable_type = true;
-//        }
-
-        $is_primitive = in_array($typeSpecification, $this->primitiveTypes, true);
-        if ($is_primitive) {
-            $schema = $this->generateSchemaForPrimitiveType(
-                $typeSpecification,
-                $defaultValue,
-                $is_iterable_type);
+        if (in_array($typeSpecification, $this->primitiveTypes, true)) {
+            $schema = $this->generateSchemaForPrimitiveType($typeSpecification, $defaultValue, $is_iterable_type);
+        } else if (in_array($typeSpecification, $this->simpleTypes, true)) {
+            $schema = $this->generateSchemaForSimpleType($typeSpecification, $is_iterable_type);
         } else {
-            $schema_blocks = array_merge($schema_blocks,
-                $this->generateSchemaPartsForComplexType(
-                    $this->resolveLocalName($declaringClass, $typeSpecification),
-                    $is_iterable_type)
-            );
+            $schema = $this->generateSchemaPartsForComplexType($this->resolveLocalName($declaringClass, $typeSpecification), $is_iterable_type);
         }
 
         $schema->nullable = $isNullableType;
 
-        if ($asProperty) {
-            $property = new Property([]);
-            $property->mergeProperties($schema);
-            return $property;
+        if ($schemaType !== null && $schemaType !== Schema::class) {
+            if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class)
+                throw new \RuntimeException('Invalid target Schema-class: '.$schemaType);
+
+            /** @var Schema $new_schema */
+            $new_schema = new $schemaType([]);
+            $this->transferOptions($schema, $new_schema);
+            return $new_schema;
         }
 
         return $schema;
@@ -176,17 +177,13 @@ class TypeDescriber
         bool $isIterable
     ): Schema
     {
-//        if (!is_subclass_of($typeSpecification, ActiveRecord::class))
-
         $schema = $this->generator->getClassDescriber()->generateSchemaForClass($typeSpecification);
-
         if ($isIterable) {
             $schema = new Schema([
                 'type' => 'array',
                 'items' => $schema,
             ]);
         }
-
         return $schema;
     }
 
@@ -285,5 +282,56 @@ class TypeDescriber
             }
         }
         return $imports;
+    }
+
+    /**
+     * @param string $typeSpecification
+     * @param bool $isIterableType
+     * @return Schema
+     */
+    public function generateSchemaForSimpleType(string $typeSpecification, bool $isIterableType)
+    {
+        // an array
+        if ($typeSpecification === 'array') {
+            $schema = new Schema([
+                'type' => 'array',
+                'items' => new Items([
+                    'type' => 'object',
+                ]),
+            ]);
+        }
+        // an object
+        else if (in_array($typeSpecification, ['stdclass', 'object', 'mixed'], true)) {
+            $schema = new Schema([
+                'type' => 'object',
+            ]);
+        }
+
+        if ($isIterableType) {
+            $schema = new Schema([
+                'type' => 'array',
+                'items' => $schema,
+            ]);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * @param Schema $schema
+     * @param AbstractAnnotation $new_schema
+     */
+    public function transferOptions(Schema $schema, AbstractAnnotation $new_schema): void
+    {
+        if ($new_schema instanceof Parameter) {
+            foreach (['required', 'description', 'deprecated', 'example'] as $property) {
+                if ($schema->{$property} !== UNDEFINED) {
+                    $new_schema->{$property} = $schema->{$property};
+                }
+            }
+            $new_schema->schema = $schema;
+        } else {
+            $new_schema->mergeProperties($schema);
+        }
     }
 }
