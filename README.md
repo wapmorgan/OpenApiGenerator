@@ -8,19 +8,17 @@ It generates yaml-files with [OpenApi](https://swagger.io/docs/specification/abo
 
 Main purpose of this library is to simplify OpenApi-file generation for existing API with a lot of methods and specially avoid manual writing of it.
 
-### ToDo
+**ToDo**:
 - [ ] Describe all scraper functions
 - [ ] Support for few operations on one endpoint
 - [ ] Extracting class types into components
 
-### Limitations
+**Limitations**:
 - Only query parameters supported (`url?param1=...&param2=...`)
 - Only one response type supported - HTTP 200 response
 - No support for parameters' / fields' / properties' `format`, `example` and other validators.
 
 ## How it works
-
-# How it works?
 
 1. You create your own _scraper_ (a class, inheriting `DefaultScraper`), which should return a special result with:
     - list of your API specifications (~ separate OpenApi-files)
@@ -34,5 +32,5 @@ Main purpose of this library is to simplify OpenApi-file generation for existing
 
 For example go to [How it works](docs/how_it_works.md) section.
 
-## Scraper result
+## How to Scrape
 Go to [Scraper result](docs/scraper_result.md) section
