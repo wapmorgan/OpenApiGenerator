@@ -6,7 +6,17 @@ It generates yaml-files with [OpenApi](https://swagger.io/docs/specification/abo
 [![Latest Unstable Version](https://poser.pugx.org/wapmorgan/openapi-generator/v/unstable)](https://packagist.org/packages/wapmorgan/openapi-generator)
 [![License](https://poser.pugx.org/wapmorgan/openapi-generator/license)](https://packagist.org/packages/wapmorgan/openapi-generator)
 
-Main purpose of this library is to simplify OpenApi-file generation for existing API with a lot of methods and specially avoid manual writing of it. 
+Main purpose of this library is to simplify OpenApi-file generation for existing API with a lot of methods and specially avoid manual writing of it.
+
+### ToDo
+- [ ] Describe all scraper functions
+- [ ] Support for few operations on one endpoint
+- [ ] Extracting class types into components
+
+### Limitations
+- Only query parameters supported (`url?param1=...&param2=...`)
+- Only one response type supported - HTTP 200 response
+- No support for parameters' / fields' / properties' `format`, `example` and other validators.
 
 # How it works?
 
@@ -190,33 +200,62 @@ tags: []
 ```
 
 # Scraper result
-You should pass a `wapmorgan\OpenApiGenerator\Scraper\Result\Result` instance in Generator.
+You should pass a `wapmorgan\OpenApiGenerator\Scraper\Result\Result` instance in Generator. All following class names
+ are in `wapmorgan\OpenApiGenerator` namespace.
 
-Let's see on it's properties: there only one property - `wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification[] specifications`. You can pass few specifications in generator in one-time and work with them separately (they will NOT be joined after generator work).
-
-
-## $specifications - `ResultSpecification`
-Let's see on `wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification` properties:
-- `string $version` - unique ID of specification.
-- `string $description` - summary of specification
-- `ResultPath[] $paths` - list of API endpoints
-- `ResultServer[] $servers` - list of servers of your API
-- `ResultTag[] $tags` - list of tags of your API with description and other properties
-- `ResultSecurityScheme[] $securitySchemes` - list of security schemes
+Properties of `Scraper\Result\Result`:
+- `Scraper\Result\ResultSpecification[]` **$specifications** - list of specifications for
+ generation. Every specification:
+    - `string` **$version** - unique ID of specification.
+    - `string` **$description** - summary of specification.
+    - [`ResultPath[]`](#resultpath) **$paths** - list of API endpoints.
+    - [`ResultServer[]`](#resultserver) **$servers** - list of servers of your API.
+    - [`ResultTag[]`](#resulttag) **$tags** - list of tags of your API with description and other properties.
+    - [`ResultSecurityScheme[]`](#resultsecurityscheme) **$securitySchemes** - list of security schemes.
 
 As you can see, a lot of them is similar to [original OpenApi 3 blocks](https://swagger.io/docs/specification/basic-structure/).
 
-### $paths - `ResultPath`
+### `ResultPath`
 Basically, you can only fill `$paths` with `ResultPath` instances. It has following properties:
 
 - `string $id` - original ID of path and it's endpoint (after server api url).
-- `string[]|null $securitySchemes` - list of security schemes applicable to this endpoint
-- `string[]|null $tags` - list of tags for this endpoint
-- `string $httpMethod = 'GET'` - HTTP-method applicable for this endpoint
-- `callable $actionCallback` - callback for this endpoint (an array like `[class, method]` supports now)
-- `string|null $pathResultWrapper` - class inheriting `\wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper`, which will be used as endpoint result wrapper
+- `string $httpMethod = 'GET'` - HTTP-method applicable for this endpoint. **Few methods is not supported now**.
+- `callable $actionCallback` - callback for this endpoint. Possible types for callback:
+    * `[class, method]` - controller method
+    This callback will be scanned and used to generate:
+    1. List of endpoint parameters
+    2. All possible resulting values
+- `string|null $pathResultWrapper` - class inheriting `\wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper
+`, which will be used as endpoint result wrapper.
+- `string[]|null $securitySchemes` - list of security schemes applicable to this endpoint. Just put here names of
+ security schemes applicable for this path.
+- `string[]|null $tags` - list of tags for this endpoint. Just put here names of tags applicable for this
+ path.
 
-### ToDo
-- [ ] Describe all scraper functions
-- [ ] Support for few operations on one endpoint
-- [ ] Extracting class types into components
+### `ResultServer`
+Properties of every server for your API:
+- `string` **$url** - URL of server
+- `string|null` **$description** - Name/description of server
+
+### `ResultTag`
+Every tag for your specification may have this instance with extra description.
+
+You should define tags manually and then link them to every paths.
+
+Properties:
+- `string` **$name** - name of tag (like `user` or `auth`).
+- `string|null` **$description** - description of tag.
+- `string|null` **$externalDocs** - URL to documentation for this tag on external resource.
+
+### `ResultSecurityScheme`
+
+Every method of authentication should have a security scheme definition.
+
+Properties of security scheme:
+- `string` **$id** - unique ID of security scheme.
+- `string` **$type** - type of scheme.
+- `string` **$in**.
+- `string` **$name** - Name for security scheme parameter.
+- `string|null` **$description** - description of security scheme.
+
+For description of all parameters and they meaning go to [explanation of authentication in OpenApi documentation](https://swagger.io/docs/specification/authentication/).
