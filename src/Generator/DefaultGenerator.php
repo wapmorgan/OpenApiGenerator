@@ -17,6 +17,7 @@ use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
 use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
@@ -105,17 +106,19 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param Result $scrapeResult
+     * @param \wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper $scraper
      * @return GeneratorResult
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
-    public function generate(Result $scrapeResult): GeneratorResult
+    public function generate(DefaultScrapper $scraper): GeneratorResult
     {
-        $this->call($this->onStartCallback, [$scrapeResult]);
+        $scrape_result = $scraper->scrape();
+
+        $this->call($this->onStartCallback, [$scrape_result]);
 
         $result = new GeneratorResult();
 
-        foreach ($scrapeResult->specifications as $specification) {
+        foreach ($scrape_result->specifications as $specification) {
             $result->specifications[] = new GeneratorResultSpecification([
                 'id' => $specification->version,
                 'title' => $specification->description,
