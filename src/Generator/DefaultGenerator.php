@@ -302,7 +302,6 @@ class DefaultGenerator extends ErrorableObject
 
         $path = new PathItem([
             'path' => $resultPath->id,
-            'summary' => str_replace('"', '\'', $doc_block->getSummary()),
         ]);
 
         $operation_class = '\OpenApi\Annotations\\'.ucfirst(strtolower($resultPath->httpMethod));
@@ -310,6 +309,7 @@ class DefaultGenerator extends ErrorableObject
         /** @var Operation $path_method */
         $path_method = $path->{strtolower($resultPath->httpMethod)} = new $operation_class([
             'operationId' => $resultPath->id.'-'.$resultPath->httpMethod,
+            'summary' => $doc_block->getSummary(),
             'tags' => [],
         ]);
 

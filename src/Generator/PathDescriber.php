@@ -18,6 +18,7 @@ use ReflectionParameter;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
 use yii\helpers\Console;
+use const OpenApi\UNDEFINED;
 
 class PathDescriber
 {
@@ -177,6 +178,9 @@ class PathDescriber
 
         $schema = $this->generator->getTypeDescriber()->generateSchemaForType($declaringClass, $result_spec, null);
         if (!empty($result_type_description)) {
+            if ($schema->description === UNDEFINED)
+                $schema->description = '';
+
             $schema->description .= PHP_EOL.$result_type_description;
         }
         return $schema;

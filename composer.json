@@ -1,7 +1,7 @@
 {
     "name": "wapmorgan/openapi-generator",
     "keywords": ["swagger", "openapi", "openapi-generator", "swagger-generator", "api", "documentation"],
-    "descripion": "PHP Library that generates OpenApi configuration (~ Swagger configuration) directly from actual PHP code",
+    "description": "PHP Library that generates OpenApi configuration (~ Swagger configuration) directly from actual PHP code",
     "authors": [
         {
             "name": "wapmorgan",
@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "php": ">=5.5.0",
+        "php": ">=7.1.0",
         "zircote/swagger-php": "^3.0",
         "doctrine/annotations": "^1.6",
         "phpdocumentor/reflection-docblock": "^4.3",

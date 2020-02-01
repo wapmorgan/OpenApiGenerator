@@ -1,9 +1,9 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
-use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
+use wapmorgan\OpenApiGenerator\InitableObject;
 
-class ResultSpecification
+class ResultSpecification extends InitableObject
 {
     /**
      * @var ResultTag[]

@@ -1,9 +1,10 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
+use wapmorgan\OpenApiGenerator\InitableObject;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
 
-class ResultPath
+class ResultPath extends InitableObject
 {
     /**
      * @var string Path ID. Should be unique of all paths
