@@ -79,19 +79,28 @@ use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
 class OpenApiScraper extends DefaultScrapper {
     public function scrape(): Result
     {
-        $result = new Result();
-        $result->specifications[0] = new ResultSpecification();
-        $result->specifications[0]->version = 'main';
-        $result->specifications[0]->description = 'My API';
+        $result = new Result([
+            'specifications' => [
+                new ResultSpecification([
+                    'version' => 'main',
+                    'description' => 'My API',
+                    'paths' => [],
+                ]),
+            ],
+        ]);
 
         $main_controller = DefaultController::class;
         // generate list of ALL API actions
         $class_reflection = new ReflectionClass($main_controller);
         foreach ($class_reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method_reflection) {
-            if (!preg_match('~^action(?<action>.+)$~', $method_reflection->getName(), $matches)) {
+            if (strncmp($method_reflection->getName(), 'action', 6) !== 0) {
                 continue;
             }
+
+            // transform actionIndex -> index
             $action_uri = strtolower(substr($matches['action'], 0, 1)).substr($matches['action'], 1);
+
+            // add path item
             $result->specifications[0]->paths[] = new ResultPath([
                 'id' => 'default/'.$action_uri,
                 'actionCallback' => [$main_controller, $method_reflection->getName()],
@@ -232,10 +241,14 @@ Basically, you can only fill `$paths` with `ResultPath` instances. It has follow
 - `string[]|null $tags` - list of tags for this endpoint. Just put here names of tags applicable for this
  path.
 
+For detailed information go to [paths description](https://swagger.io/docs/specification/paths-and-operations/).
+
 ### `ResultServer`
 Properties of every server for your API:
 - `string` **$url** - URL of server
-- `string|null` **$description** - Name/description of server
+- `string|null` **$description** - name/description of server.
+
+For detailed information go to [servers description](https://swagger.io/docs/specification/api-host-and-base-path/).
 
 ### `ResultTag`
 Every tag for your specification may have this instance with extra description.
@@ -246,6 +259,8 @@ Properties:
 - `string` **$name** - name of tag (like `user` or `auth`).
 - `string|null` **$description** - description of tag.
 - `string|null` **$externalDocs** - URL to documentation for this tag on external resource.
+
+For detailed information go to [tags description](https://swagger.io/docs/specification/grouping-operations-with-tags/).
 
 ### `ResultSecurityScheme`
 
