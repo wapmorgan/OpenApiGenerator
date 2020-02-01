@@ -2,6 +2,7 @@
     "name": "wapmorgan/openapi-generator",
     "keywords": ["swagger", "openapi", "openapi-generator", "swagger-generator", "api", "documentation"],
     "description": "PHP Library that generates OpenApi configuration (~ Swagger configuration) directly from actual PHP code",
+    "license": "MIT",
     "authors": [
         {
             "name": "wapmorgan",
