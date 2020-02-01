@@ -6,6 +6,16 @@ use wapmorgan\OpenApiGenerator\InitableObject;
 class ResultSpecification extends InitableObject
 {
     /**
+     * @var string|null Specification version
+     */
+    public $version;
+
+    /**
+     * @var string Specification description
+     */
+    public $description;
+
+    /**
      * @var ResultTag[]
      */
     public $tags = [];
@@ -24,16 +34,6 @@ class ResultSpecification extends InitableObject
      * @var ResultSecurityScheme[] List of security schemes
      */
     public $securitySchemes = [];
-
-    /**
-     * @var string Specification description
-     */
-    public $description;
-
-    /**
-     * @var string|null Specification version
-     */
-    public $version;
 
     /**
      * @var int Number of paths
