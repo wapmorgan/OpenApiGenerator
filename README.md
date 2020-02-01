@@ -54,6 +54,11 @@ class DefaultController {
 1. Create **a scraper**:
 
 ```php
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
+use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
+use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
+
 class OpenApiScraper extends DefaultScrapper {
     public function scrape(): Result
     {
