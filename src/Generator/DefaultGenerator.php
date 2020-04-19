@@ -152,6 +152,9 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
+     * Sets callable to invoke on new specification progress start
+     *
+     * Data passed to callable: `ResultSpecification $spec`
      * @param callable|null $onSpecificationStartCallback
      * @return DefaultGenerator
      */
@@ -162,6 +165,9 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
+     * Sets callable to invoke on current specification progress finish
+     *
+     * Data passed to callable: `ResultSpecification $spec`
      * @param callable|null $onSpecificationEndCallback
      * @return DefaultGenerator
      */
@@ -192,6 +198,10 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
+     *
+     * Sets callable to invoke on new path progress start
+     *
+     * Data passed to callable: `ResultPath $path, ResultSpecification $specification`
      * @param callable|null $onPathStartCallback
      * @return DefaultGenerator
      */
@@ -202,6 +212,9 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
+     * Sets callable to invoke on current path progress finish
+     *
+     * Data passed to callable: `ResultPath $path, ResultSpecification $specification`
      * @param callable|null $onPathEndCallback
      * @return DefaultGenerator
      */
@@ -236,7 +249,8 @@ class DefaultGenerator extends ErrorableObject
         $this->currentOpenApi = $openapi;
 
         $openapi->info = new Info([
-            'title' => $specification->description,
+            'title' => $specification->title,
+            'description' => $specification->description,
             'version' => $specification->version,
         ]);
 
@@ -274,17 +288,17 @@ class DefaultGenerator extends ErrorableObject
         $openapi->paths = [];
 
         foreach ($specification->paths as $path) {
-            $this->call($this->onPathStartCallback, [$path]);
+            $this->call($this->onPathStartCallback, [$path, $specification]);
 
             try {
                 $openapi->paths[] = $this->generateAnnotationForPath($path);
             } catch (Exception $e) {
-                $this->notice('Error when working on '.$specification->version.':'.$path->id
+                $this->notice('Error when working on '.$specification->version.'#'.$path->id
                     .': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', static::NOTICE_ERROR);
-                $this->notice($e->getTraceAsString(), static::NOTICE_ERROR);
+                $this->notice($e->getTraceAsString(), static::NOTICE_INFO);
             }
 
-            $this->call($this->onPathEndCallback, [$path]);
+            $this->call($this->onPathEndCallback, [$path, $specification]);
         }
 
         $this->call($this->onSpecificationEndCallback, [$specification]);
@@ -300,19 +314,24 @@ class DefaultGenerator extends ErrorableObject
     protected function generateAnnotationForPath(ResultPath $resultPath): PathItem
     {
         $path_reflection = ReflectionsCollection::getMethod($resultPath->actionCallback[0], $resultPath->actionCallback[1]);
-
-        $doc_block = $this->docBlockFactory->create($path_reflection->getDocComment());
+        $path_doc = $path_reflection->getDocComment();
 
         $path = new PathItem([
             'path' => $resultPath->id,
         ]);
 
-        $operation_class = '\OpenApi\Annotations\\'.ucfirst(strtolower($resultPath->httpMethod));
+        if ($path_doc === false) {
+            $this->notice('Path '.$resultPath->id.' has no doc at all', self::NOTICE_IMPORTANT);
+            $doc_block = null;
+        } else {
+            $doc_block = $this->docBlockFactory->create($path_doc);
+        }
 
+        $operation_class = '\OpenApi\Annotations\\'.ucfirst(strtolower($resultPath->httpMethod));
         /** @var Operation $path_method */
         $path_method = $path->{strtolower($resultPath->httpMethod)} = new $operation_class([
             'operationId' => $resultPath->id.'-'.$resultPath->httpMethod,
-            'summary' => $doc_block->getSummary(),
+            'summary' => $doc_block ? $doc_block->getSummary() : null,
             'tags' => [],
         ]);
 

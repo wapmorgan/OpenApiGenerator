@@ -11,6 +11,11 @@ class ResultSpecification extends InitableObject
     public $version;
 
     /**
+     * @var string Specification title
+     */
+    public $title;
+
+    /**
      * @var string Specification description
      */
     public $description;
@@ -34,9 +39,4 @@ class ResultSpecification extends InitableObject
      * @var ResultSecurityScheme[] List of security schemes
      */
     public $securitySchemes = [];
-
-    /**
-     * @var int Number of paths
-     */
-    public $totalPaths = 0;
 }

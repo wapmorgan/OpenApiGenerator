@@ -96,6 +96,10 @@ class TypeDescriber
                                 'oneOf' => $sub_type_schemas,
                             ]);
                     }
+                } else {
+                    return new Schema([
+                        'oneOf' => $sub_type_schemas,
+                    ]);
                 }
             }
         }
@@ -106,10 +110,10 @@ class TypeDescriber
             $is_iterable_type = true;
         }
 
-        if (in_array($typeSpecification, $this->primitiveTypes, true)) {
-            $schema = $this->generateSchemaForPrimitiveType($typeSpecification, $defaultValue, $is_iterable_type);
-        } else if (in_array($typeSpecification, $this->simpleTypes, true)) {
-            $schema = $this->generateSchemaForSimpleType($typeSpecification, $is_iterable_type);
+        if (in_array(strtolower($typeSpecification), $this->primitiveTypes, true)) {
+            $schema = $this->generateSchemaForPrimitiveType(strtolower($typeSpecification), $defaultValue, $is_iterable_type);
+        } else if (in_array(strtolower($typeSpecification), $this->simpleTypes, true)) {
+            $schema = $this->generateSchemaForSimpleType(strtolower($typeSpecification), $is_iterable_type);
         } else {
             $schema = $this->generateSchemaPartsForComplexType($this->resolveLocalName($declaringClass, $typeSpecification), $is_iterable_type);
         }

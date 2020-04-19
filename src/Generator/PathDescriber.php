@@ -43,11 +43,11 @@ class PathDescriber
      * @param Operation $pathOperation
      * @return void
      */
-    public function generatePathDescription(Operation $pathOperation, DocBlock $docBlock): void
+    public function generatePathDescription(Operation $pathOperation, ?DocBlock $docBlock): void
     {
         $description = [];
 
-        if (!empty($docBlock->getDescription())) {
+        if ($docBlock !== null && !empty($docBlock->getDescription())) {
             $description[] = implode("\n", array_map(static function ($line) {
                 return ltrim(rtrim($line), '*');
             },
@@ -55,7 +55,7 @@ class PathDescriber
             ));
         }
 
-        if (!empty($link_tags = $docBlock->getTagsByName('link'))) {
+        if ($docBlock !== null && !empty($link_tags = $docBlock->getTagsByName('link'))) {
             if (count($link_tags) > 1) {
                 /** @var Link $link_tag */
                 foreach ($link_tags as $link_tag) {
@@ -74,14 +74,14 @@ class PathDescriber
 
     /**
      * @param ReflectionMethod $actionReflection
-     * @param DocBlock $docBlock
+     * @param DocBlock|null $docBlock
      * @param DefaultPathResultWrapper|null $pathResultWrapper
      * @return Schema|null
      * @throws ReflectionException
      */
     public function generationPathMethodResponses(
         ReflectionMethod $actionReflection,
-        DocBlock $docBlock,
+        ?DocBlock $docBlock,
         ?DefaultPathResultWrapper $pathResultWrapper
     ) : ?Response
     {
@@ -93,14 +93,14 @@ class PathDescriber
             $result_wrapper_schema = $this->generateSchemaForPathResult($declaring_class, $pathResultWrapper->wrapperClass, null);
         }
 
-        if ($docBlock->hasTag('return')) {
+        if ($docBlock !== null && $docBlock->hasTag('return')) {
             /** @var Return_ $return_block */
             $return_block = $docBlock->getTagsByName('return')[0];
             $return_string = trim(substr($return_block->render(), 8));
 
             // Поддержка нескольких возвращемых типов
             foreach (explode('|', $return_string) as $return_type) {
-                if ($return_type == 'null') continue;
+                if ($return_type === 'null') continue;
 
                 $responses_schemas[] = $this->generateSchemaForPathResult($declaring_class, $return_type, $pathResultWrapper);
             }
@@ -188,18 +188,20 @@ class PathDescriber
 
     /**
      * @param ReflectionMethod $actionReflection
-     * @param DocBlock $docBlock
+     * @param DocBlock|null $docBlock
      * @return Parameter[]
      * @throws ReflectionException
      */
-    public function generatePathOperationParameters(ReflectionMethod $actionReflection, DocBlock $docBlock): array
+    public function generatePathOperationParameters(ReflectionMethod $actionReflection, ?DocBlock $docBlock): array
     {
         /** @var array<string, Param> $doc_block_parameters */
         $doc_block_parameters = [];
 
-        /** @var Param $action_parameter */
-        foreach ($docBlock->getTagsByName('param') as $action_parameter) {
-            $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
+        if ($docBlock !== null) {
+            /** @var Param $action_parameter */
+            foreach ($docBlock->getTagsByName('param') as $action_parameter) {
+                $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
+            }
         }
 
         $parameters = [];
