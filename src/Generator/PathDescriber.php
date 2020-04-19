@@ -9,6 +9,7 @@ use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\Response;
 use OpenApi\Annotations\Schema;
 use phpDocumentor\Reflection\DocBlock;
+use phpDocumentor\Reflection\DocBlock\Tag;
 use phpDocumentor\Reflection\DocBlock\Tags\Link;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
@@ -196,11 +197,40 @@ class PathDescriber
     {
         /** @var array<string, Param> $doc_block_parameters */
         $doc_block_parameters = [];
+        $parameters_enums = $parameters_examples = [];
 
         if ($docBlock !== null) {
             /** @var Param $action_parameter */
             foreach ($docBlock->getTagsByName('param') as $action_parameter) {
                 $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
+            }
+
+            /** @var Tag $action_parameter_enum */
+            foreach ($docBlock->getTagsByName('paramEnum') as $action_parameter_enum) {
+                $enum_string = $action_parameter_enum->getDescription() !== null
+                    ? (string)$action_parameter_enum->getDescription()
+                    : null;
+                if (strpos($enum_string, ' ') === false) {
+                    $this->generator->notice('Param enum '.$enum_string.' is incomplete', DefaultGenerator::NOTICE_WARNING);
+                    continue;
+                } else {
+                    list($enum_param, $enum_list) = explode(' ', $enum_string, 2);
+                    $parameters_enums[ltrim($enum_param, '$')] = explode('|', $enum_list);
+                }
+            }
+
+            /** @var Tag $action_parameter_example */
+            foreach ($docBlock->getTagsByName('paramExample') as $action_parameter_example) {
+                $example_string = $action_parameter_example->getDescription() !== null
+                    ? (string)$action_parameter_example->getDescription()
+                    : null;
+                if (strpos($example_string, ' ') === false) {
+                    $this->generator->notice('Param example '.$example_string.' is incomplete', DefaultGenerator::NOTICE_WARNING);
+                    continue;
+                } else {
+                    list($example_param, $example_value) = explode(' ', $example_string, 2);
+                    $parameters_examples[ltrim($example_param, '$')][] = $example_value;
+                }
             }
         }
 
@@ -211,7 +241,9 @@ class PathDescriber
             foreach ($actionReflection->getParameters() as $parameter) {
                 $parameter_annotation = $this->generateSchemaForParameter(
                     $parameter,
-                    $doc_block_parameters[$parameter->getName()] ?? null
+                    $doc_block_parameters[$parameter->getName()] ?? null,
+                    $parameters_enums[$parameter->getName()] ?? null,
+                    $parameters_examples[$parameter->getName()] ?? null,
                 );
 
                 if ($parameter_annotation !== null) {
@@ -251,13 +283,16 @@ class PathDescriber
     /**
      * @param ReflectionParameter $pathParameter
      * @param Param|null $docBlockParameter
+     * @param array|null $enum
+     * @param array|null $examples
      * @return Parameter|null
      * @throws ReflectionException
-     * @throws \Exception
      */
     public function generateSchemaForParameter(
         ReflectionParameter $pathParameter,
-        ?Param $docBlockParameter = null
+        ?Param $docBlockParameter = null,
+        ?array $enum = null,
+        ?array $examples = null
     ): ?Parameter
     {
         $is_nullable_parameter = $is_required_parameter = false;
@@ -309,7 +344,14 @@ class PathDescriber
             $docBlockParameter !== null ? $docBlockParameter->getType() : null,
             $defaultValue ?? null,
             $is_nullable_parameter);
-        ;
+
+        if ($enum !== null && !empty($enum)) {
+            $schema->enum = $enum;
+        }
+
+        if ($examples !== null && !empty($examples)) {
+            $schema->example = current($examples);
+        }
 
         $parameter = new Parameter([
             'name' => $pathParameter->getName(),
