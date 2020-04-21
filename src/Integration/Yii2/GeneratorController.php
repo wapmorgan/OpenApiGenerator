@@ -1,5 +1,5 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Command\yii2;
+namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
 
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
