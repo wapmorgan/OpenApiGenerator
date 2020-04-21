@@ -82,6 +82,8 @@ A yaml or json for swagger-ui.
                 - { properties: { result: { description: "\nResult of send", type: boolean, nullable: false } } }
 ```
 
+If your need full process example, go to [How it works](docs/how_it_works.md) file.
+
 ### What it parses (from code)
 
 - Controller summary, `@descripton` and `@docs`.
@@ -99,13 +101,10 @@ Also, there is support for non-usual php-doc tags: `@paramEnum`, `@paramExample`
 
     In two words, you need to create a scraper that will find all API endpoints of your application, collect them and pass it in special format.
 
+    [Details about a Scraper](docs/scraper_result.md) in another file.
+
 2. You pass it to a generator, it generates ready-to-use OpenApi-specifications.
 3. You save these specifications in different files / places or move to different hosts.
-
-For example go to [How it works](docs/how_it_works.md) section.
-
-### How to Scrape
-Go to [Scraper result](docs/scraper_result.md) section
 
 ## Examples
 
