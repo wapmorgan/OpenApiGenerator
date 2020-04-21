@@ -23,6 +23,8 @@ Main purpose of this library is to simplify OpenApi-file generation for existing
 Next sections show how it works (simplified)
 
 ### What it takes
+A controller (class) and action (method).
+
 ```php
 class MainController extends Controller {
     /**
@@ -44,8 +46,9 @@ class MainController extends Controller {
 ```
 
 ### What it generates
+A yaml or json for swagger-ui.
 
-``yaml
+```yaml
   /main/testSendMessage:
     get:
       tags:
@@ -77,10 +80,11 @@ class MainController extends Controller {
             application/json:
               schema:
                 - { properties: { result: { description: "\nResult of send", type: boolean, nullable: false } } }
-``
+```
 
 ### What it parses (from code)
 
+- Controller summary, `@descripton` and `@docs`.
 - Action summary (first line of php-doc) and description
 - Action parameters: php-doc ones (`@param`) and ones in action method signatures (`string $text`).
 Also, there is support for non-usual php-doc tags: `@paramEnum`, `@paramExample` and `@auth`.
