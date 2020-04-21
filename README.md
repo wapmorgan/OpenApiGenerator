@@ -108,7 +108,8 @@ For example go to [How it works](docs/how_it_works.md) section.
 Go to [Scraper result](docs/scraper_result.md) section
 
 ## Examples
-Example of Yii2 integration:
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\CodeScraper`](Integration/Yii2/CodeScraper.php)
-- A console controller - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\GeneratorController`](Integration/Yii2/GeneratorController.php)
+**Example of Yii2 integration:**
+
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\CodeScraper`](src/Integration/Yii2/CodeScraper.php)
+- A console controller - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\GeneratorController`](src/Integration/Yii2/GeneratorController.php)
