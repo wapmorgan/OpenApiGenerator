@@ -6,12 +6,7 @@ It generates yaml-files with [OpenApi](https://swagger.io/docs/specification/abo
 [![Latest Unstable Version](https://poser.pugx.org/wapmorgan/openapi-generator/v/unstable)](https://packagist.org/packages/wapmorgan/openapi-generator)
 [![License](https://poser.pugx.org/wapmorgan/openapi-generator/license)](https://packagist.org/packages/wapmorgan/openapi-generator)
 
-Main purpose of this library is to simplify OpenApi-file generation for existing API with a lot of methods and specially avoid manual writing of it.
-
-**ToDo**:
-- [ ] Describe all scraper functions
-- [ ] Support for few operations on one endpoint
-- [ ] Extracting class types into components
+Main purpose of this library is to simplify OpenApi-file generation for existing API with a lot of methods - avoid manual writing of it.
 
 **Limitations**:
 - Only query parameters supported (`url?param1=...&param2=...`)
@@ -92,6 +87,46 @@ If your need full process example, go to [How it works](docs/how_it_works.md) fi
 Also, there is support for non-usual php-doc tags: `@paramEnum`, `@paramExample` and `@auth`.
 - Action result (`@return SendMessageResponse`)
 
+#### Controller
+
+All actions within one controller will have with tag of it.
+
+```php
+/**
+ * @description Main functions
+ * @docs http://...
+ */
+class MainController {
+}
+```
+
+- `@description` - description for tag.
+- `@docs` - URL to page with tag description.
+
+#### Action
+
+```php
+/**
+ * Action summary
+ *
+ * Action detailed description
+ * on few lines
+ * @param string|null $data Data fo action
+ * @paramEnum $data all|one|two
+ * @paramExample $data two
+ * @return TestResponse
+ * @auth
+ */
+public function actionTest($data)
+{
+  // ...
+}
+```
+
+- `@paramEnum` lists all values that can be used in parameter. Syntax: `@paramEnum $variable 1st[|2nd[...]]`
+- `@paramExample` sets example for parameter. Syntax: `@paramExample $variable string_value`
+- `@auth` 
+
 ## How to use it
 
 1. You create your own _scraper_ (a class, inheriting `DefaultScraper`), which should return a special result with:
@@ -112,3 +147,10 @@ Also, there is support for non-usual php-doc tags: `@paramEnum`, `@paramExample`
 
 - A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\CodeScraper`](src/Integration/Yii2/CodeScraper.php)
 - A console controller - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\GeneratorController`](src/Integration/Yii2/GeneratorController.php)
+
+## ToDo
+- [ ] Support for few operations on one endpoint (GET/POST/PUT/DELETE/...).
+- [ ] Support for body parameters (when parameters are complex objects)
+- [ ] Support for few responses (with different HTTP codes).
+- [ ] Extracting class types into separate components (into openapi components).
+- [ ] Add `@paramFormat` for specifying parameter format.
