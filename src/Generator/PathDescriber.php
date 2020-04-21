@@ -300,14 +300,14 @@ class PathDescriber
         if ($docBlockParameter === null) {
             $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
                 .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
-                .'" has no doc-block at all, skipping', ErrorableObject::NOTICE_ERROR);
+                .'" has no doc-block at all, skipping', ErrorableObject::NOTICE_WARNING);
             return null;
         }
 
         if (empty((string)$docBlockParameter->getType())) {
-            $this->generator->error('Param "'.$pathParameter->getName().'" of "'
+            $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
                 .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
-                .'" has doc-block, but type is not defined. Skipping...');
+                .'" has doc-block, but type is not defined. Skipping...', ErrorableObject::NOTICE_WARNING);
             return null;
         }
 

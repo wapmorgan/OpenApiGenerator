@@ -287,19 +287,25 @@ class DefaultGenerator extends ErrorableObject
 
         $openapi->paths = [];
 
+        $paths = $errored_paths = 0;
+
         foreach ($specification->paths as $path) {
             $this->call($this->onPathStartCallback, [$path, $specification]);
 
             try {
                 $openapi->paths[] = $this->generateAnnotationForPath($path);
+                $paths++;
             } catch (Exception $e) {
-                $this->notice('Error when working on '.$specification->version.'#'.$path->id
+                $errored_paths++;
+                $this->notice('Error when working on '.$specification->version.$path->id
                     .': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().')', static::NOTICE_ERROR);
                 $this->notice($e->getTraceAsString(), static::NOTICE_INFO);
             }
 
             $this->call($this->onPathEndCallback, [$path, $specification]);
         }
+        $this->notice('Generated '.$paths.' paths for '.$specification->version
+            .($errored_paths > 0 ? ', '.$errored_paths.' errored' : null), static::NOTICE_IMPORTANT);
 
         $this->call($this->onSpecificationEndCallback, [$specification]);
 
@@ -321,7 +327,7 @@ class DefaultGenerator extends ErrorableObject
         ]);
 
         if ($path_doc === false) {
-            $this->notice('Path '.$resultPath->id.' has no doc at all', self::NOTICE_IMPORTANT);
+            $this->notice('Path '.$resultPath->id.' has no doc at all', self::NOTICE_WARNING);
             $doc_block = null;
         } else {
             $doc_block = $this->docBlockFactory->create($path_doc);

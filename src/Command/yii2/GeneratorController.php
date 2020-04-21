@@ -56,10 +56,10 @@ class GeneratorController extends Controller
 
     static protected $noticeLevelColors = [
         DefaultGenerator::NOTICE_SUCCESS => [Console::FG_GREEN],
-        DefaultGenerator::NOTICE_IMPORTANT => [Console::BG_YELLOW, Console::FG_GREEN],
-        DefaultGenerator::NOTICE_INFO => [Console::FG_YELLOW],
+        DefaultGenerator::NOTICE_IMPORTANT => [Console::BG_BLUE, Console::FG_GREY],
+        DefaultGenerator::NOTICE_INFO => [Console::FG_BLUE],
         DefaultGenerator::NOTICE_WARNING => [Console::FG_RED],
-        DefaultGenerator::NOTICE_ERROR => [Console::BG_RED, Console::FG_BLACK],
+        DefaultGenerator::NOTICE_ERROR => [Console::BG_YELLOW, Console::FG_RED],
     ];
 
     /**
@@ -89,7 +89,7 @@ class GeneratorController extends Controller
             $file_name = $directory .'/'
                 .sprintf($this->outputFilePattern, $result_specification->id, $this->outputFormat);
 
-            Console::output('Saving '.$this->outputFormat.' for '.$result_specification->id.' as '.$file_name);
+            self::output('Saving '.$this->outputFormat.' for '.$result_specification->id.' as '.$file_name, DefaultGenerator::NOTICE_IMPORTANT);
 
             if (($written = file_put_contents($file_name, $data)) !== $data_size) {
                 throw new \RuntimeException('Written '.$written.' byte(s) out of '.$data_size);
@@ -106,9 +106,10 @@ class GeneratorController extends Controller
     {
         $generator = new DefaultGenerator();
         $generator->setOnNoticeCallback(function ($message, $level) {
-            Console::output(Console::ansiFormat(
-                ($this->currentPath !== null ? $this->currentPath.':' : null)
-                .$message, static::$noticeLevelColors[$level]));
+            self::output(
+                ($this->currentPath !== null ? $this->currentPath.': ' : null).$message,
+                $level
+            );
         });
         $generator->getClassDescriber()->setClassDescribingOptions(ActiveRecord::class, []);
         return $generator;
@@ -161,5 +162,10 @@ class GeneratorController extends Controller
     {
         $scraper = new $this->scraper();
         return $scraper;
+    }
+
+    public static function output($message, $level): void
+    {
+        Console::output(Console::ansiFormat($message, static::$noticeLevelColors[$level]));
     }
 }

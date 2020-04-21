@@ -56,7 +56,7 @@ class ClassDescriber
         $objectReflection = ReflectionsCollection::getClass($class);
 
         if ($objectReflection === false) {
-            $this->generator->error(sprintf('Class "%s" could not be found', $class));
+            $this->generator->notice(sprintf('Class "%s" could not be found', $class), ErrorableObject::NOTICE_ERROR);
             return null;
         }
 
