@@ -13,6 +13,8 @@ Main purpose of this library is to simplify OpenApi-file generation for existing
 - Only one response type supported - HTTP 200 response
 - No support for parameters' / fields' / properties' `format`, `example` and other validators.
 
+Original idea by [@maxonrock](https://github.com/maxonrock).
+
 ## How it works
 
 Next sections show how it works (simplified)
