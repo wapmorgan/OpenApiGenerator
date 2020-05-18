@@ -134,6 +134,31 @@ class TypeDescriber
     }
 
     /**
+     * @param object $object
+     * @param string|null $schemaType
+     * @return Schema|null
+     */
+    public function generateSchemaForObject(
+        object $object,
+        ?string $schemaType = null
+    )
+    {
+        $schema = $this->generateSchemaPartsForObject($object, false);
+
+        if ($schemaType !== null && $schemaType !== Schema::class) {
+            if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class)
+                throw new \RuntimeException('Invalid target Schema-class: '.$schemaType);
+
+            /** @var Schema $new_schema */
+            $new_schema = new $schemaType([]);
+            $this->transferOptions($schema, $new_schema);
+            return $new_schema;
+        }
+
+        return $schema;
+    }
+
+    /**
      * @param string $typeSpecification
      * @param $defaultValue
      * @param bool $isIterable
@@ -182,6 +207,26 @@ class TypeDescriber
     ): Schema
     {
         $schema = $this->generator->getClassDescriber()->generateSchemaForClass($typeSpecification);
+        if ($isIterable) {
+            $schema = new Schema([
+                'type' => 'array',
+                'items' => $schema,
+            ]);
+        }
+        return $schema;
+    }
+
+    /**
+     * @param object $object
+     * @param bool $isIterable
+     * @return Schema|null
+     */
+    protected function generateSchemaPartsForObject(
+        object $object,
+        bool $isIterable
+    )
+    {
+        $schema = $this->generator->getClassDescriber()->generateSchemaForObject($object);
         if ($isIterable) {
             $schema = new Schema([
                 'type' => 'array',

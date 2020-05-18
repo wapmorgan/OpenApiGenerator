@@ -319,7 +319,9 @@ class DefaultGenerator extends ErrorableObject
      */
     protected function generateAnnotationForPath(ResultPath $resultPath): PathItem
     {
-        $path_reflection = ReflectionsCollection::getMethod($resultPath->actionCallback[0], $resultPath->actionCallback[1]);
+        $callback_class = is_object($resultPath->actionCallback[0]) ? get_class($resultPath->actionCallback[0]) : $resultPath->actionCallback[0];
+        $path_reflection = ReflectionsCollection::getMethod($callback_class, $resultPath->actionCallback[1]);
+
         $path_doc = $path_reflection->getDocComment();
 
         $path = new PathItem([
@@ -355,8 +357,17 @@ class DefaultGenerator extends ErrorableObject
             }
         }
 
+        // generate responses from @return
+        if (!isset($resultPath->pathResult)) {
+            $path_response_schemas = $this->pathDescriber->generatePathMethodResponsesFromDocBlock($path_reflection, $doc_block, $resultPath->pathResultWrapper);
+        }
+        // generate responses from passed {pathResult}
+        else {
+            $path_response_schemas = $this->pathDescriber->generationPathMethodResponseFromType($path_reflection, $resultPath->pathResult, $resultPath->pathResultWrapper);
+        }
+
         $path_method->responses = [
-            $this->pathDescriber->generationPathMethodResponses($path_reflection, $doc_block, $resultPath->pathResultWrapper)
+            $this->pathDescriber->combineSchemesWithWrapper($path_response_schemas, $path_reflection, $resultPath->pathResultWrapper)
         ];
         $path_method->parameters = $this->pathDescriber->generatePathOperationParameters($path_reflection, $doc_block);
 

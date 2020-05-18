@@ -77,23 +77,18 @@ class PathDescriber
      * @param ReflectionMethod $actionReflection
      * @param DocBlock|null $docBlock
      * @param DefaultPathResultWrapper|null $pathResultWrapper
-     * @return Schema|null
+     * @return array
      * @throws ReflectionException
      */
-    public function generationPathMethodResponses(
+    public function generatePathMethodResponsesFromDocBlock(
         ReflectionMethod $actionReflection,
         ?DocBlock $docBlock,
         ?DefaultPathResultWrapper $pathResultWrapper
-    ) : ?Response
+    ): ?array
     {
-        // Generation @OA\Response
-        $responses_schemas = [];
         $declaring_class = $actionReflection->getDeclaringClass()->getName();
 
-        if ($pathResultWrapper !== null) {
-            $result_wrapper_schema = $this->generateSchemaForPathResult($declaring_class, $pathResultWrapper->wrapperClass, null);
-        }
-
+        $responses_schemas = [];
         if ($docBlock !== null && $docBlock->hasTag('return')) {
             /** @var Return_ $return_block */
             $return_block = $docBlock->getTagsByName('return')[0];
@@ -102,12 +97,64 @@ class PathDescriber
             // Поддержка нескольких возвращемых типов
             foreach (explode('|', $return_string) as $return_type) {
                 if ($return_type === 'null') continue;
-
-                $responses_schemas[] = $this->generateSchemaForPathResult($declaring_class, $return_type, $pathResultWrapper);
+                $responses_schemas[] = $this->generateSchemaForPathResultBlock($declaring_class, $return_type, $pathResultWrapper);
             }
+            return $responses_schemas;
+        }
 
+        return null;
+    }
+
+    /**
+     * @param ReflectionMethod $actionReflection
+     * @param string|object|null $type
+     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @throws ReflectionException
+     */
+    public function generationPathMethodResponseFromType(
+        ReflectionMethod $actionReflection,
+        $type,
+        ?DefaultPathResultWrapper $pathResultWrapper
+    )
+    {
+        $declaring_class = $actionReflection->getDeclaringClass()->getName();
+
+        $responses_schemas = [];
+        if (is_string($type)) {
+            // Поддержка нескольких возвращемых типов
+            foreach (explode('|', $type) as $return_type) {
+                if ($return_type === 'null') continue;
+                $responses_schemas[] = $this->generateSchemaForPathResultBlock($declaring_class, $return_type, $pathResultWrapper);
+            }
+            return $responses_schemas;
+        } else if (is_object($type)) {
+            return [$this->generateSchemaForPathResultObject($declaring_class, $type)];
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param array|null $schemas
+     * @param ReflectionMethod $actionReflection
+     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @return null
+     * @throws ReflectionException
+     */
+    public function combineSchemesWithWrapper(
+        ?array $schemas,
+        ReflectionMethod $actionReflection,
+        ?DefaultPathResultWrapper $pathResultWrapper)
+    {
+        $declaring_class = $actionReflection->getDeclaringClass()->getName();
+        if ($pathResultWrapper !== null) {
+            $result_wrapper_schema = $this->generateSchemaForPathResultBlock($declaring_class, $pathResultWrapper->wrapperClass, null);
+        }
+
+        if (!empty($schemas)) {
+            // integrate wrapper in all responses
             if (isset($result_wrapper_schema)) {
-                foreach ($responses_schemas as $i => &$result_combination) {
+                foreach ($schemas as $i => &$result_combination) {
                     $result_combination = new Schema([
                         'allOf' => [
                             $result_wrapper_schema,
@@ -117,19 +164,20 @@ class PathDescriber
                 }
             }
         } else if (isset($result_wrapper_schema)) {
-            $responses_schemas = [$result_wrapper_schema];
+            $schemas = [$result_wrapper_schema];
         } else {
             return null;
         }
 
-        if (count($responses_schemas) === 1) {
-            $result_block = current($responses_schemas);
+        if (count($schemas) === 1) {
+            $result_block = current($schemas);
         } else {
             $result_block = new Schema([
-                'oneOf' => $responses_schemas,
+                'oneOf' => $schemas,
             ]);
         }
 
+        // Generation @OA\Response
         return new Response([
             'response' => 200,
             'description' => 'Successful response',
@@ -149,12 +197,31 @@ class PathDescriber
      * @return Schema
      * @throws ReflectionException
      */
-    protected function generateSchemaForPathResult(
+    protected function generateSchemaForPathResultBlock(
         string $declaringClass,
         string $returnBlock,
         ?DefaultPathResultWrapper $pathResultWrapper = null
     ): Schema {
         $schema = $this->generateSchemaForReturnBlock($declaringClass, $returnBlock);
+        if ($pathResultWrapper !== null) {
+            $schema = $pathResultWrapper->wrapResultInSchema($schema);
+        }
+        return $schema;
+    }
+
+    /**
+     * @param string $declaringClass
+     * @param object $returnObject
+     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @return Schema
+     * @throws ReflectionException
+     */
+    protected function generateSchemaForPathResultObject(
+        string $declaringClass,
+        object $returnObject,
+        ?DefaultPathResultWrapper $pathResultWrapper = null
+    ): Schema {
+        $schema = $this->generateSchemaForReturnObject($declaringClass, $returnObject);
         if ($pathResultWrapper !== null) {
             $schema = $pathResultWrapper->wrapResultInSchema($schema);
         }
@@ -185,6 +252,19 @@ class PathDescriber
             $schema->description .= PHP_EOL.$result_type_description;
         }
         return $schema;
+    }
+
+    /**
+     * @param string $declaringClass
+     * @param object $returnObject
+     * @return Schema
+     */
+    public function generateSchemaForReturnObject(
+        string $declaringClass,
+        object $returnObject
+    ): Schema {
+        $result_type_description = null;
+        return $this->generator->getTypeDescriber()->generateSchemaForObject($returnObject);
     }
 
     /**

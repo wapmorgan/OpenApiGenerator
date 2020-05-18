@@ -3,8 +3,11 @@ namespace wapmorgan\OpenApiGenerator\Generator;
 
 use OpenApi\Annotations\Property as PropertyAnnotation;
 use OpenApi\Annotations\Schema;
+use phpDocumentor\Reflection\DocBlock\Tag;
 use phpDocumentor\Reflection\DocBlock\Tags\Property as PropertyDocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
+use ReflectionClass;
+use ReflectionObject;
 use ReflectionProperty;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
@@ -12,7 +15,9 @@ use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 class ClassDescriber
 {
     public const
+        // Properties in PhpDoc a-la @property
         CLASS_VIRTUAL_PROPERTIES = 1,
+        // Explicit class properties
         CLASS_PUBLIC_PROPERTIES = 2;
 
     /**
@@ -25,8 +30,13 @@ class ClassDescriber
      */
     protected $classesDescribingOptions = [
         null => [
-            self::CLASS_PUBLIC_PROPERTIES,
-            self::CLASS_VIRTUAL_PROPERTIES => ['property']
+            self::CLASS_PUBLIC_PROPERTIES => true,
+            self::CLASS_VIRTUAL_PROPERTIES => [
+                'property' => [
+                    'enum' => true,
+                    'example' => true,
+                ],
+            ],
         ],
     ];
 
@@ -41,63 +51,61 @@ class ClassDescriber
 
     /**
      * @param string $class
-     * @return Schema
+     * @return Schema|null
      * @throws \ReflectionException
      * @throws \Exception
      */
     public function generateSchemaForClass($class): ?Schema
     {
-        $schema = new Schema([
-            'type' => 'object',
-        ]);
-
-        $properties = [];
-        $required_fields = [];
         $objectReflection = ReflectionsCollection::getClass($class);
-
         if ($objectReflection === false) {
             $this->generator->notice(sprintf('Class "%s" could not be found', $class), ErrorableObject::NOTICE_ERROR);
             return null;
         }
 
-        $describing_rules = $this->getDescribingRulesForClass($class);
+        $schema = $this->describeClassByReflection($objectReflection);
 
-        // virtual fields
-        if (isset($describing_rules[self::CLASS_VIRTUAL_PROPERTIES]) && ($doc_text = $objectReflection->getDocComment()) !== false) {
-            $doc = $this->generator->getDocBlockFactory()->create($doc_text);
-
-            $class_virtual_properties = $describing_rules[self::CLASS_VIRTUAL_PROPERTIES];
-            if (is_string($class_virtual_properties)) $class_virtual_properties = [$class_virtual_properties];
-
-            foreach ($class_virtual_properties as $class_virtual_property) {
-                if ($doc->hasTag($class_virtual_property)) {
-                    /** @var PropertyDocBlock $object_field */
-                    foreach ($doc->getTagsByName($class_virtual_property) as $object_field) {
-                        if (empty((string)$object_field->getType())) {
-                            $this->generator->notice('Property "'.$object_field->getVariableName().'" of "'
-                                .$objectReflection->getName().'" has doc-block, but type is not defined. Skipping...',
-                                ErrorableObject::NOTICE_WARNING);
-                            continue;
-                        }
-
-                        $is_nullable_property = false;
-                        $properties[$object_field->getVariableName()] = $this->generateAnnotationForObjectVirtualProperty($object_field, $class, $is_nullable_property);
-                        if (!$is_nullable_property) {
-                            $required_fields[] = $object_field->getVariableName();
-                        }
-                    }
-                }
-            }
-            unset($doc);
+        if (empty($schema->properties)) {
+            $this->generator->notice('Class '.$class.' has no properties after describing', ErrorableObject::NOTICE_INFO);
         }
 
-        // explicit fields
-        if (in_array(self::CLASS_PUBLIC_PROPERTIES, $describing_rules, true)) {
-            foreach ($objectReflection->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
-                $properties[$propertyReflection->getName()] = $this->generateAnnotationForObjectProperty($propertyReflection);
-                $required_fields[] = $propertyReflection->getName();
-            }
+        return $schema;
+    }
+
+    /**
+     * @param object $object
+     * @return Schema|null
+     * @throws \ReflectionException
+     */
+    public function generateSchemaForObject(object $object): ?Schema
+    {
+        $objectReflection = new ReflectionObject($object);
+        if ($objectReflection === false) {
+            $this->generator->notice(sprintf('Object of class "%s" could not be found', get_class($object)), ErrorableObject::NOTICE_ERROR);
+            return null;
         }
+
+        $schema = $this->describeClassByReflection($objectReflection);
+
+        if (empty($schema->properties)) {
+            $this->generator->notice('Object of class '.get_class($object).' has no properties after describing', DefaultGenerator::NOTICE_INFO);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @return Schema
+     * @throws \ReflectionException
+     */
+    protected function describeClassByReflection(ReflectionClass $reflectionClass): Schema
+    {
+        $schema = new Schema([
+            'type' => 'object',
+        ]);
+        $required_fields = [];
+        $properties = $this->generateAnnotationsForClassProperties($reflectionClass->getName(), $reflectionClass, $required_fields);
 
         if (!empty($required_fields)) {
             $schema->required = array_values(array_unique($required_fields));
@@ -109,10 +117,7 @@ class ClassDescriber
             foreach ($properties as $property) {
                 $schema->properties[] = $property;
             }
-        } else {
-            $this->generator->notice('Class '.$class.' has no properties after describing', DefaultGenerator::NOTICE_INFO);
         }
-
 
         return $schema;
     }
@@ -137,7 +142,10 @@ class ClassDescriber
             null,
             $isNullable,
             PropertyAnnotation::class);
-        if ($property === null) {var_dump(func_get_args(), $propertyTag); }
+
+        if ($property === null) {
+            $this->generator->notice(ErrorableObject::NOTICE_ERROR, 'Property '.$propertyTag->getName().' is empty');
+        }
 
         $property->property = $propertyTag->getVariableName();
 
@@ -224,5 +232,104 @@ class ClassDescriber
         }
 
         return $this->classesDescribingOptions[null];
+    }
+
+    /**
+     * @param string $class
+     * @param $objectReflection
+     * @param array $properties
+     * @param array $requiredFields
+     * @return array
+     * @throws \ReflectionException
+     */
+    public function generateAnnotationsForClassProperties(string $class, $objectReflection, array &$requiredFields = []): array
+    {
+        $describing_rules = $this->getDescribingRulesForClass($class);
+
+        $properties = [];
+
+        // virtual fields
+        if (isset($describing_rules[self::CLASS_VIRTUAL_PROPERTIES]) && ($doc_text = $objectReflection->getDocComment()) !== false) {
+            $doc = $this->generator->getDocBlockFactory()->create($doc_text);
+
+            $class_virtual_properties = $describing_rules[self::CLASS_VIRTUAL_PROPERTIES];
+
+            foreach ($class_virtual_properties as $class_virtual_property => $class_virtual_property_config) {
+
+                if ($doc->hasTag($class_virtual_property)) {
+                    // listing all properties
+                    /** @var PropertyDocBlock $object_field */
+                    foreach ($doc->getTagsByName($class_virtual_property) as $object_field) {
+                        if (empty((string)$object_field->getType())) {
+                            $this->generator->notice('Property "' . $object_field->getVariableName() . '" of "'
+                                . $objectReflection->getName() . '" has doc-block, but type is not defined. Skipping...',
+                                ErrorableObject::NOTICE_WARNING);
+                            continue;
+                        }
+
+                        $is_nullable_property = false;
+                        $properties[$object_field->getVariableName()] = $this->generateAnnotationForObjectVirtualProperty($object_field, $class, $is_nullable_property);
+                        if (!$is_nullable_property) {
+                            $requiredFields[] = $object_field->getVariableName();
+                        }
+                    }
+
+                    // listing all enums
+                    if (isset($class_virtual_property_config['enum']) && $class_virtual_property_config['enum']) {
+                        foreach ($doc->getTagsByName($class_virtual_property . 'Enum') as $object_field_enum) {
+                            $enum_string = $object_field_enum->getDescription() !== null
+                                ? (string)$object_field_enum->getDescription()
+                                : null;
+                            if (strpos($enum_string, ' ') === false) {
+                                $this->generator->notice('Property enum ' . $enum_string . ' is incomplete', ErrorableObject::NOTICE_WARNING);
+                                continue;
+                            } else {
+                                list($enum_object_field, $enum_list) = explode(' ', $enum_string, 2);
+                                $enum_object_field = ltrim($enum_object_field, '$');
+
+                                if (isset($properties[$enum_object_field])) {
+                                    $properties[$enum_object_field]->enum = explode('|', $enum_list);
+                                } else {
+                                    $this->generator->notice('Property "'.$enum_object_field.'" of enum ' . $enum_string . ' is not defined', ErrorableObject::NOTICE_WARNING);
+                                }
+                            }
+                        }
+                    }
+
+                    // listing all examples
+                    if (isset($class_virtual_property_config['example']) && $class_virtual_property_config['example']) {
+                        foreach ($doc->getTagsByName($class_virtual_property.'Example') as $object_field_example) {
+                            $example_string = $object_field_example->getDescription() !== null
+                                ? (string)$object_field_example->getDescription()
+                                : null;
+                            if (strpos($example_string, ' ') === false) {
+                                $this->generator->notice('Property example ' . $example_string . ' is incomplete', ErrorableObject::NOTICE_WARNING);
+                                continue;
+                            } else {
+                                list($example_object_field, $example_value) = explode(' ', $example_string, 2);
+                                $example_object_field = ltrim($example_object_field, '$');
+
+                                if (isset($properties[$example_object_field])) {
+                                    $properties[$example_object_field]->example = $example_value;
+                                } else {
+                                    $this->generator->notice('Property "'.$example_object_field.'" of example ' . $example_value . ' is not defined', ErrorableObject::NOTICE_WARNING);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            unset($doc);
+        }
+
+        // explicit fields
+        if (in_array(self::CLASS_PUBLIC_PROPERTIES, $describing_rules, true)) {
+            foreach ($objectReflection->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
+                $properties[$propertyReflection->getName()] = $this->generateAnnotationForObjectProperty($propertyReflection);
+                $requiredFields[] = $propertyReflection->getName();
+            }
+        }
+
+        return $properties;
     }
 }

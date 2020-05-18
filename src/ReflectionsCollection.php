@@ -27,6 +27,7 @@ class ReflectionsCollection
 
     /**
      * @param string $className
+     * @param string $methodName
      * @return ReflectionMethod|bool
      * @throws \ReflectionException
      */
