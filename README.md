@@ -30,14 +30,17 @@ class MainController extends Controller {
      * Sends simple text message to an admin
      * @param string $topic Topic of the message
      * @param string $text Text of the message
-     * @return bool Result of send
+     * @return ResultSend Result of send
      */
     public function actionTestSendMessage($topic, $text)
     {
         // ...
         // ... here goes some work ...
         // ...
-        return true;
+        return new ResultSend([
+            'success' => true,
+            'datetime' => (new DateTime())->format(DateTime::ATOM),
+        ]);
     }
 }
 ```
