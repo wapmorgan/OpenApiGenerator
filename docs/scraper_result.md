@@ -9,7 +9,8 @@ Properties of `Scraper\Result\Result`:
 - `Scraper\Result\ResultSpecification[]` **$specifications** - list of specifications for
  generation. Every specification:
     - `string` **$version** - unique ID of specification.
-    - `string` **$description** - summary of specification.
+    - `string|null` **$description** - summary of specification.
+    - `string|null` **$externalDocs** - URL to external docs.
     - [`ResultPath[]`](#resultpath) **$paths** - list of API endpoints.
     - [`ResultServer[]`](#resultserver) **$servers** - list of servers of your API.
     - [`ResultTag[]`](#resulttag) **$tags** - list of tags of your API with description and other properties.
@@ -29,6 +30,8 @@ Basically, you can only fill `$paths` with `ResultPath` instances. It has follow
     2. All possible resulting values
 - `string|null $pathResultWrapper` - class inheriting `\wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper
 `, which will be used as endpoint result wrapper.
+- `string|object|null $pathResult` - Pointer to another type that is the real result of action.
+    Can be an object, which will be described as usual complex type (class).
 - `string[]|null $securitySchemes` - list of security schemes applicable to this endpoint. Just put here names of
  security schemes applicable for this path.
 - `string[]|null $tags` - list of tags for this endpoint. Just put here names of tags applicable for this

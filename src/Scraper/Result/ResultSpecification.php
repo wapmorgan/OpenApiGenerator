@@ -39,4 +39,9 @@ class ResultSpecification extends InitableObject
      * @var ResultSecurityScheme[] List of security schemes
      */
     public $securitySchemes = [];
+
+    /**
+     * @var string|null URL to external page
+     */
+    public $externalDocs;
 }

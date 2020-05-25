@@ -254,6 +254,10 @@ class DefaultGenerator extends ErrorableObject
             'version' => $specification->version,
         ]);
 
+        if ($specification->externalDocs !== null) {
+            $openapi->externalDocs = new ExternalDocumentation(['url' => $specification->externalDocs]);
+        }
+
         $openapi->servers = [];
         foreach ($specification->servers as $server) {
             $openapi->servers[] = new Server([
