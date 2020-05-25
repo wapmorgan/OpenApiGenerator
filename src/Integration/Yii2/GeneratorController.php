@@ -57,7 +57,7 @@ class GeneratorController extends Controller
     static protected $noticeLevelColors = [
         DefaultGenerator::NOTICE_SUCCESS => [Console::FG_GREEN],
         DefaultGenerator::NOTICE_IMPORTANT => [Console::BG_BLUE, Console::FG_GREY],
-        DefaultGenerator::NOTICE_INFO => [Console::FG_BLUE],
+        DefaultGenerator::NOTICE_INFO => [Console::BG_GREY, Console::FG_BLACK],
         DefaultGenerator::NOTICE_WARNING => [Console::FG_RED],
         DefaultGenerator::NOTICE_ERROR => [Console::BG_YELLOW, Console::FG_RED],
     ];
