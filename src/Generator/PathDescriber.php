@@ -17,7 +17,7 @@ use ReflectionException;
 use ReflectionMethod;
 use ReflectionParameter;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultPathResultWrapper;
+use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
 use yii\helpers\Console;
 use const OpenApi\UNDEFINED;
 
@@ -76,14 +76,14 @@ class PathDescriber
     /**
      * @param ReflectionMethod $actionReflection
      * @param DocBlock|null $docBlock
-     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @param PathResultWrapper|null $pathResultWrapper
      * @return array
      * @throws ReflectionException
      */
     public function generatePathMethodResponsesFromDocBlock(
         ReflectionMethod $actionReflection,
         ?DocBlock $docBlock,
-        ?DefaultPathResultWrapper $pathResultWrapper
+        ?PathResultWrapper $pathResultWrapper
     ): ?array
     {
         $declaring_class = $actionReflection->getDeclaringClass()->getName();
@@ -108,13 +108,13 @@ class PathDescriber
     /**
      * @param ReflectionMethod $actionReflection
      * @param string|object|null $type
-     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @param PathResultWrapper|null $pathResultWrapper
      * @throws ReflectionException
      */
     public function generationPathMethodResponseFromType(
         ReflectionMethod $actionReflection,
         $type,
-        ?DefaultPathResultWrapper $pathResultWrapper
+        ?PathResultWrapper $pathResultWrapper
     )
     {
         $declaring_class = $actionReflection->getDeclaringClass()->getName();
@@ -137,14 +137,14 @@ class PathDescriber
     /**
      * @param array|null $schemas
      * @param ReflectionMethod $actionReflection
-     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @param PathResultWrapper|null $pathResultWrapper
      * @return null
      * @throws ReflectionException
      */
     public function combineSchemesWithWrapper(
         ?array $schemas,
         ReflectionMethod $actionReflection,
-        ?DefaultPathResultWrapper $pathResultWrapper)
+        ?PathResultWrapper $pathResultWrapper)
     {
         $declaring_class = $actionReflection->getDeclaringClass()->getName();
         if ($pathResultWrapper !== null) {
@@ -193,14 +193,14 @@ class PathDescriber
     /**
      * @param string $declaringClass
      * @param string $returnBlock
-     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @param PathResultWrapper|null $pathResultWrapper
      * @return Schema
      * @throws ReflectionException
      */
     protected function generateSchemaForPathResultBlock(
         string $declaringClass,
         string $returnBlock,
-        ?DefaultPathResultWrapper $pathResultWrapper = null
+        ?PathResultWrapper $pathResultWrapper = null
     ): Schema {
         $schema = $this->generateSchemaForReturnBlock($declaringClass, $returnBlock);
         if ($pathResultWrapper !== null) {
@@ -212,14 +212,14 @@ class PathDescriber
     /**
      * @param string $declaringClass
      * @param object $returnObject
-     * @param DefaultPathResultWrapper|null $pathResultWrapper
+     * @param PathResultWrapper|null $pathResultWrapper
      * @return Schema
      * @throws ReflectionException
      */
     protected function generateSchemaForPathResultObject(
         string $declaringClass,
         object $returnObject,
-        ?DefaultPathResultWrapper $pathResultWrapper = null
+        ?PathResultWrapper $pathResultWrapper = null
     ): Schema {
         $schema = $this->generateSchemaForReturnObject($declaringClass, $returnObject);
         if ($pathResultWrapper !== null) {

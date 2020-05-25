@@ -18,7 +18,10 @@ class ClassDescriber
         // Properties in PhpDoc a-la @property
         CLASS_VIRTUAL_PROPERTIES = 1,
         // Explicit class properties
-        CLASS_PUBLIC_PROPERTIES = 2;
+        CLASS_PUBLIC_PROPERTIES = 2,
+
+        // Allowing to redirect describing to another type
+        CLASS_SCHEMA_PROPERTY = 10;
 
     /**
      * @var DefaultGenerator
@@ -37,6 +40,7 @@ class ClassDescriber
                     'example' => true,
                 ],
             ],
+            self::CLASS_SCHEMA_PROPERTY => 'schema',
         ],
     ];
 
@@ -57,13 +61,46 @@ class ClassDescriber
      */
     public function generateSchemaForClass($class): ?Schema
     {
-        $objectReflection = ReflectionsCollection::getClass($class);
-        if ($objectReflection === false) {
+        $reflection = ReflectionsCollection::getClass($class);
+        if ($reflection === false) {
             $this->generator->notice(sprintf('Class "%s" could not be found', $class), ErrorableObject::NOTICE_ERROR);
             return null;
         }
 
-        $schema = $this->describeClassByReflection($objectReflection);
+        // get first non-empty class for describing
+        $describable_class = $this->findFirstDescribableClass($reflection);
+        if ($describable_class === null) {
+            $this->generator->notice('Could not find any describable parent of '.$class, ErrorableObject::NOTICE_INFO);
+            return null;
+        }
+
+        if (($redirection = $this->getRedirection($describable_class)) !== null) {
+            if (substr($redirection, 0,  1) === '$') {
+                if (substr($redirection, -2) === '[]') {
+                    $is_iterable = true;
+                    $redirection = substr($redirection, 1, -2);
+                } else {
+                    $is_iterable = false;
+                    $redirection = substr($redirection, 1);
+                }
+
+                if (!$reflection->hasProperty($redirection)) {
+                    $this->generator->notice('Could not find redirection property '.$redirection.' in class '.$class, ErrorableObject::NOTICE_INFO);
+                    return null;
+                }
+
+                $properties = $reflection->getDefaultProperties();
+
+                return $this->generator->getTypeDescriber()->generateSchemaForType(
+                    $describable_class->getName(),
+                    $properties[$redirection].($is_iterable ? '[]' : null), null);
+            } else {
+                $this->generator->notice('Redirection tag in '.$class.' should start with $', ErrorableObject::NOTICE_INFO);
+                return null;
+            }
+        }
+
+        $schema = $this->describeClassByReflection($reflection, $describable_class);
 
         if (empty($schema->properties)) {
             $this->generator->notice('Class '.$class.' has no properties after describing', ErrorableObject::NOTICE_INFO);
@@ -75,17 +112,45 @@ class ClassDescriber
     /**
      * @param object $object
      * @return Schema|null
-     * @throws \ReflectionException
      */
     public function generateSchemaForObject(object $object): ?Schema
     {
-        $objectReflection = new ReflectionObject($object);
-        if ($objectReflection === false) {
+        $reflection = new ReflectionObject($object);
+        if ($reflection === false) {
             $this->generator->notice(sprintf('Object of class "%s" could not be found', get_class($object)), ErrorableObject::NOTICE_ERROR);
             return null;
         }
 
-        $schema = $this->describeClassByReflection($objectReflection);
+        // get first non-empty class for describing
+        $describable_class = $this->findFirstDescribableClass($reflection);
+        if ($describable_class === null) {
+            $this->generator->notice('Could not find any describable parent of object of class '.get_class($object), ErrorableObject::NOTICE_INFO);
+            return null;
+        }
+
+        if (($redirection = $this->getRedirection($describable_class)) !== null) {
+            if (substr($redirection, 0,  1) === '$') {
+                if (substr($redirection, -2) === '[]') {
+                    $is_iterable = true;
+                    $redirection = substr($redirection, 1, -2);
+                } else {
+                    $is_iterable = false;
+                    $redirection = substr($redirection, 1);
+                }
+
+                if (!isset($object->{$redirection})) {
+                    $this->generator->notice('Could not find redirection property '.$redirection.' in object of class '.get_class($object), ErrorableObject::NOTICE_INFO);
+                    return null;
+                }
+
+                return $this->generator->getTypeDescriber()->generateSchemaForObject($object->{$redirection}, $is_iterable);
+            } else {
+                $this->generator->notice('Redirection tag in '.get_class($object).' should start with $', ErrorableObject::NOTICE_INFO);
+                return null;
+            }
+        }
+
+        $schema = $this->describeClassByReflection($reflection, $describable_class, $object);
 
         if (empty($schema->properties)) {
             $this->generator->notice('Object of class '.get_class($object).' has no properties after describing', DefaultGenerator::NOTICE_INFO);
@@ -96,16 +161,25 @@ class ClassDescriber
 
     /**
      * @param ReflectionClass $reflectionClass
+     * @param ReflectionClass $describableClass
+     * @param object|null $object
      * @return Schema
      * @throws \ReflectionException
      */
-    protected function describeClassByReflection(ReflectionClass $reflectionClass): Schema
+    protected function describeClassByReflection(
+        ReflectionClass $reflectionClass,
+        ReflectionClass $describableClass,
+        ?object $object = null): Schema
     {
         $schema = new Schema([
             'type' => 'object',
         ]);
         $required_fields = [];
-        $properties = $this->generateAnnotationsForClassProperties($reflectionClass->getName(), $reflectionClass, $required_fields);
+        $properties = $this->generateAnnotationsForClassProperties(
+            $reflectionClass->getName(),
+            $describableClass->getName(),
+            $object,
+            $required_fields);
 
         if (!empty($required_fields)) {
             $schema->required = array_values(array_unique($required_fields));
@@ -126,22 +200,50 @@ class ClassDescriber
      * @param PropertyDocBlock $propertyTag
      * @param string $declaringClass
      * @param bool $isNullable
+     * @param object|null $object
      * @return PropertyAnnotation
      * @throws \ReflectionException
      */
     protected function generateAnnotationForObjectVirtualProperty(
         PropertyDocBlock $propertyTag,
         string $declaringClass,
-        &$isNullable = false
+        &$isNullable = false,
+        ?object $object = null
     ): PropertyAnnotation
     {
-        /** @var PropertyAnnotation $property */
-        $property = $this->generator->getTypeDescriber()->generateSchemaForType(
-            $declaringClass,
-            $propertyTag->getType(),
-            null,
-            $isNullable,
-            PropertyAnnotation::class);
+        // if type is a link to class/object property's value
+        if (property_exists($declaringClass, $type = trim($propertyTag->getType(), '\\[]'))) {
+            $iterable = false;
+            if (substr($type, -2) == '[]') {
+                $type = substr($type, 0, -2);
+                $iterable = true;
+            }
+
+            if ($object !== null) {
+                /** @var PropertyAnnotation $property */
+                $property = $this->generator->getTypeDescriber()->generateSchemaForObject(
+                    $object->{$type},
+                    $iterable,
+                    PropertyAnnotation::class);
+            } else {
+                $properties = ReflectionsCollection::getClass($declaringClass)->getDefaultProperties();
+                /** @var PropertyAnnotation $property */
+                $property = $this->generator->getTypeDescriber()->generateSchemaForType(
+                    $declaringClass,
+                    $properties[$type],
+                    null,
+                    $isNullable,
+                    PropertyAnnotation::class);
+            }
+        } else {
+            /** @var PropertyAnnotation $property */
+            $property = $this->generator->getTypeDescriber()->generateSchemaForType(
+                $declaringClass,
+                $propertyTag->getType(),
+                null,
+                $isNullable,
+                PropertyAnnotation::class);
+        }
 
         if ($property === null) {
             $this->generator->notice(ErrorableObject::NOTICE_ERROR, 'Property '.$propertyTag->getName().' is empty');
@@ -236,20 +338,25 @@ class ClassDescriber
 
     /**
      * @param string $class
-     * @param $objectReflection
-     * @param array $properties
+     * @param string $describableClass
+     * @param object|null $object
      * @param array $requiredFields
      * @return array
      * @throws \ReflectionException
      */
-    public function generateAnnotationsForClassProperties(string $class, $objectReflection, array &$requiredFields = []): array
+    public function generateAnnotationsForClassProperties(
+        string $class,
+        string $describableClass,
+        ?object $object = null,
+        array &$requiredFields = []
+    ): array
     {
         $describing_rules = $this->getDescribingRulesForClass($class);
 
         $properties = [];
 
         // virtual fields
-        if (isset($describing_rules[self::CLASS_VIRTUAL_PROPERTIES]) && ($doc_text = $objectReflection->getDocComment()) !== false) {
+        if (isset($describing_rules[self::CLASS_VIRTUAL_PROPERTIES]) && ($doc_text = ReflectionsCollection::getClass($describableClass)->getDocComment()) !== false) {
             $doc = $this->generator->getDocBlockFactory()->create($doc_text);
 
             $class_virtual_properties = $describing_rules[self::CLASS_VIRTUAL_PROPERTIES];
@@ -262,13 +369,19 @@ class ClassDescriber
                     foreach ($doc->getTagsByName($class_virtual_property) as $object_field) {
                         if (empty((string)$object_field->getType())) {
                             $this->generator->notice('Property "' . $object_field->getVariableName() . '" of "'
-                                . $objectReflection->getName() . '" has doc-block, but type is not defined. Skipping...',
+                                . $class . '" has doc-block, but type is not defined. Skipping...',
                                 ErrorableObject::NOTICE_WARNING);
                             continue;
                         }
 
                         $is_nullable_property = false;
-                        $properties[$object_field->getVariableName()] = $this->generateAnnotationForObjectVirtualProperty($object_field, $class, $is_nullable_property);
+                        $properties[$object_field->getVariableName()] = $this->generateAnnotationForObjectVirtualProperty(
+                            $object_field,
+                            $class,
+                            $is_nullable_property,
+                            $object
+                        );
+
                         if (!$is_nullable_property) {
                             $requiredFields[] = $object_field->getVariableName();
                         }
@@ -324,12 +437,69 @@ class ClassDescriber
 
         // explicit fields
         if (in_array(self::CLASS_PUBLIC_PROPERTIES, $describing_rules, true)) {
-            foreach ($objectReflection->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
+            foreach (ReflectionsCollection::getClass($class)->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
                 $properties[$propertyReflection->getName()] = $this->generateAnnotationForObjectProperty($propertyReflection);
                 $requiredFields[] = $propertyReflection->getName();
             }
         }
 
         return $properties;
+    }
+
+    /**
+     * @param string $class
+     * @return bool|mixed
+     */
+    protected function getSchemaPropertyForClass(string $class)
+    {
+        $rules = $this->getDescribingRulesForClass($class);
+        return isset($rules[self::CLASS_SCHEMA_PROPERTY]) ? $rules[self::CLASS_SCHEMA_PROPERTY] : false;
+    }
+
+    /**
+     * @param ReflectionClass $reflection
+     * @return false|ReflectionClass
+     */
+    protected function findFirstDescribableClass(ReflectionClass $reflection)
+    {
+        return $reflection;
+//        while ($reflection instanceof ReflectionClass) {
+//            if ($reflection->getDocComment() !== false) {
+//                return $reflection;
+//            }
+//
+//            $reflection = $reflection->getParentClass();
+//        }
+//
+//        return null;
+    }
+
+    /**
+     * @param ReflectionClass $reflection
+     * @return string|null
+     */
+    protected function getRedirection(ReflectionClass $reflection)
+    {
+        // check for redirection tag in Marshaller
+        $schema_tag = $this->getSchemaPropertyForClass($reflection->getName());
+
+        if ($schema_tag === false)
+            return null;
+
+        $phpdoc = $reflection->getDocComment();
+        if ($phpdoc === false)
+            return null;
+
+        $doc = $this->generator->getDocBlockFactory()->create($phpdoc);
+        if (!$doc->hasTag($schema_tag))
+            return null;
+
+        $tags = $doc->getTagsByName($schema_tag);
+        if (count($tags) > 1) {
+            $this->generator->notice(sprintf('Using first redirection tag for "%s"', $reflection->getName()), ErrorableObject::NOTICE_WARNING);
+        }
+
+        $tag = current($tags);
+        return (string)$tag->getDescription();
     }
 }

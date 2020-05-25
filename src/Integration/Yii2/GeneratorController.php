@@ -3,8 +3,8 @@ namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
 
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
@@ -136,20 +136,20 @@ class GeneratorController extends Controller
         $done = $total = 0;
         $this->currentPath = null;
 
-        $generator->setOnSpecificationStartCallback(function (ResultSpecification $spec) use (&$total, &$done) {
+        $generator->setOnSpecificationStartCallback(function (Specification $spec) use (&$total, &$done) {
             $done = 0;
-            $total = count($spec->paths);
+            $total = count($spec->endpoints);
             Console::startProgress(0, $total, $spec->title);
         });
-        $generator->setOnPathStartCallback(function (ResultPath $path, ResultSpecification $specification) {
+        $generator->setOnPathStartCallback(function (Endpoint $path, Specification $specification) {
             $this->currentPath = $specification->version.$path->id;
         });
-        $generator->setOnPathEndCallback(function (ResultPath $path, ResultSpecification $specification) use (&$total, &$done) {
+        $generator->setOnPathEndCallback(function (Endpoint $path, Specification $specification) use (&$total, &$done) {
             $this->currentPath = null;
             $done++;
             Console::updateProgress($done, $total, $specification->version . ($this->verbose ? $path->id : null));
         });
-        $generator->setOnSpecificationEndCallback(function (ResultSpecification $spec) use (&$total) {
+        $generator->setOnSpecificationEndCallback(function (Specification $spec) use (&$total) {
             $total = 0;
             Console::endProgress();
         });

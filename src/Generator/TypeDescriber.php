@@ -135,15 +135,18 @@ class TypeDescriber
 
     /**
      * @param object $object
+     * @param bool $isIterable
      * @param string|null $schemaType
      * @return Schema|null
+     * @throws ReflectionException
      */
     public function generateSchemaForObject(
         object $object,
+        bool $isIterable = false,
         ?string $schemaType = null
-    )
+    ): ?Schema
     {
-        $schema = $this->generateSchemaPartsForObject($object, false);
+        $schema = $this->generateSchemaPartsForObject($object, $isIterable);
 
         if ($schemaType !== null && $schemaType !== Schema::class) {
             if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class)
@@ -220,6 +223,7 @@ class TypeDescriber
      * @param object $object
      * @param bool $isIterable
      * @return Schema|null
+     * @throws ReflectionException
      */
     protected function generateSchemaPartsForObject(
         object $object,

@@ -19,8 +19,8 @@ use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 
 class DefaultGenerator extends ErrorableObject
 {
@@ -235,11 +235,11 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param ResultSpecification $specification
+     * @param Specification $specification
      * @return OpenApi
      * @throws ReflectionException
      */
-    protected function generateSpecification(ResultSpecification $specification): OpenApi
+    protected function generateSpecification(Specification $specification): OpenApi
     {
         $this->call($this->onSpecificationStartCallback, [$specification]);
 
@@ -293,7 +293,7 @@ class DefaultGenerator extends ErrorableObject
 
         $paths = $errored_paths = 0;
 
-        foreach ($specification->paths as $path) {
+        foreach ($specification->endpoints as $path) {
             $this->call($this->onPathStartCallback, [$path, $specification]);
 
             try {
@@ -317,14 +317,14 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param ResultPath $resultPath
+     * @param Endpoint $resultPath
      * @return PathItem
      * @throws ReflectionException
      */
-    protected function generateAnnotationForPath(ResultPath $resultPath): PathItem
+    protected function generateAnnotationForPath(Endpoint $resultPath): PathItem
     {
-        $callback_class = is_object($resultPath->actionCallback[0]) ? get_class($resultPath->actionCallback[0]) : $resultPath->actionCallback[0];
-        $path_reflection = ReflectionsCollection::getMethod($callback_class, $resultPath->actionCallback[1]);
+        $callback_class = is_object($resultPath->callback[0]) ? get_class($resultPath->callback[0]) : $resultPath->callback[0];
+        $path_reflection = ReflectionsCollection::getMethod($callback_class, $resultPath->callback[1]);
 
         $path_doc = $path_reflection->getDocComment();
 
@@ -362,16 +362,16 @@ class DefaultGenerator extends ErrorableObject
         }
 
         // generate responses from @return
-        if (!isset($resultPath->pathResult)) {
-            $path_response_schemas = $this->pathDescriber->generatePathMethodResponsesFromDocBlock($path_reflection, $doc_block, $resultPath->pathResultWrapper);
+        if (!isset($resultPath->result)) {
+            $path_response_schemas = $this->pathDescriber->generatePathMethodResponsesFromDocBlock($path_reflection, $doc_block, $resultPath->resultWrapper);
         }
         // generate responses from passed {pathResult}
         else {
-            $path_response_schemas = $this->pathDescriber->generationPathMethodResponseFromType($path_reflection, $resultPath->pathResult, $resultPath->pathResultWrapper);
+            $path_response_schemas = $this->pathDescriber->generationPathMethodResponseFromType($path_reflection, $resultPath->result, $resultPath->resultWrapper);
         }
 
         $path_method->responses = [
-            $this->pathDescriber->combineSchemesWithWrapper($path_response_schemas, $path_reflection, $resultPath->pathResultWrapper)
+            $this->pathDescriber->combineSchemesWithWrapper($path_response_schemas, $path_reflection, $resultPath->resultWrapper)
         ];
         $path_method->parameters = $this->pathDescriber->generatePathOperationParameters($path_reflection, $doc_block);
 

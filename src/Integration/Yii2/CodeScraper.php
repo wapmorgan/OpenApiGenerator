@@ -5,11 +5,11 @@ use ReflectionMethod;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSecurityScheme;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultServer;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultTag;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result\SecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Server;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Tag;
 use Yii;
 
 class CodeScraper extends DefaultScrapper
@@ -64,20 +64,20 @@ class CodeScraper extends DefaultScrapper
                 $controller_doc = $controller_reflection->getDocComment();
                 $controller_description = $this->getDocParameter($controller_doc, 'description', '');
                 $controller_docs = $this->getDocParameter($controller_doc, 'docs', '');
-                $specification->tags[] = new ResultTag([
+                $specification->tags[] = new Tag([
                     'name' => $controller_configuration['controllerId'],
                     'description' => $controller_description,
                     'externalDocs' => $controller_docs,
                 ]);
 
                 foreach ($controller_configuration['actions'] as $controller_action_id => $controller_action_method) {
-                    $path = new ResultPath();
+                    $path = new Endpoint();
                     $path->id = ($controller_configuration['controllerId'] !== 'default' ? '/' . $controller_configuration['controllerId'] : null)
                         . '/' . $controller_action_id;
 
                     if (is_string($controller_action_method)) {
                         $action_reflection = ReflectionsCollection::getMethod($controller_class, $controller_action_method);
-                        $path->actionCallback = [$controller_class, $controller_action_method];
+                        $path->callback = [$controller_class, $controller_action_method];
                     }
 
                     $path->tags[] = $controller_configuration['controllerId'];
@@ -87,7 +87,7 @@ class CodeScraper extends DefaultScrapper
                         $this->ensureSecuritySchemeAdded($specification, $this->defaultSecurityScheme);
                         $path->securitySchemes[] = $this->defaultSecurityScheme;
                     }
-                    $specification->paths[] = $path;
+                    $specification->endpoints[] = $path;
                 }
             }
 
@@ -227,17 +227,17 @@ class CodeScraper extends DefaultScrapper
 
     /**
      * @param string $moduleId
-     * @return ResultSpecification
+     * @return Specification
      */
-    protected function newSpecification(string $moduleId): ResultSpecification
+    protected function newSpecification(string $moduleId): Specification
     {
-        $specification = new ResultSpecification();
+        $specification = new Specification();
         $specification->title = 'API Example';
         $specification->version = $moduleId;
         $specification->description = 'API Example version '.$moduleId;
 
         foreach ($this->servers as $server_url => $server_description) {
-            $specification->servers[] = new ResultServer([
+            $specification->servers[] = new Server([
                 'url' => $server_url.$moduleId.'/',
                 'description' => $server_description,
             ]);
@@ -247,11 +247,11 @@ class CodeScraper extends DefaultScrapper
     }
 
     /**
-     * @param ResultSpecification $specification
+     * @param Specification $specification
      * @param string $authScheme
      * @return bool
      */
-    protected function ensureSecuritySchemeAdded(ResultSpecification $specification, string $authScheme)
+    protected function ensureSecuritySchemeAdded(Specification $specification, string $authScheme)
     {
         foreach ($specification->securitySchemes as $securityScheme) {
             if ($securityScheme->id === $authScheme) {
@@ -262,7 +262,7 @@ class CodeScraper extends DefaultScrapper
         if (isset($this->securitySchemes[$authScheme])) {
             $scheme = $this->securitySchemes[$authScheme];
             $scheme['id'] = $authScheme;
-            $specification->securitySchemes[] = new ResultSecurityScheme($scheme);
+            $specification->securitySchemes[] = new SecurityScheme($scheme);
             return true;
         }
 
