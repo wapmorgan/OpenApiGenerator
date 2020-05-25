@@ -356,7 +356,8 @@ class ClassDescriber
         $properties = [];
 
         // virtual fields
-        if (isset($describing_rules[self::CLASS_VIRTUAL_PROPERTIES]) && ($doc_text = ReflectionsCollection::getClass($describableClass)->getDocComment()) !== false) {
+        if (isset($describing_rules[self::CLASS_VIRTUAL_PROPERTIES]) && $describing_rules[self::CLASS_VIRTUAL_PROPERTIES]
+            && ($doc_text = ReflectionsCollection::getClass($describableClass)->getDocComment()) !== false) {
             $doc = $this->generator->getDocBlockFactory()->create($doc_text);
 
             $class_virtual_properties = $describing_rules[self::CLASS_VIRTUAL_PROPERTIES];
@@ -436,7 +437,7 @@ class ClassDescriber
         }
 
         // explicit fields
-        if (in_array(self::CLASS_PUBLIC_PROPERTIES, $describing_rules, true)) {
+        if (isset($describing_rules[self::CLASS_PUBLIC_PROPERTIES]) && $describing_rules[self::CLASS_PUBLIC_PROPERTIES]) {
             foreach (ReflectionsCollection::getClass($class)->getProperties(ReflectionProperty::IS_PUBLIC) as $propertyReflection) {
                 $properties[$propertyReflection->getName()] = $this->generateAnnotationForObjectProperty($propertyReflection);
                 $requiredFields[] = $propertyReflection->getName();
