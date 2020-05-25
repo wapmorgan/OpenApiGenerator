@@ -6,7 +6,7 @@ use wapmorgan\OpenApiGenerator\InitableObject;
 class Result extends InitableObject
 {
     /**
-     * @var ResultSpecification[]
+     * @var Specification[]
      */
     public $specifications = [];
 }

@@ -5,7 +5,7 @@ use OpenApi\Annotations\Property;
 use OpenApi\Annotations\Schema;
 use wapmorgan\OpenApiGenerator\InitableObject;
 
-class DefaultPathResultWrapper extends InitableObject
+class PathResultWrapper extends InitableObject
 {
     /**
      * @var string Class name of path result wrapper

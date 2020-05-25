@@ -3,7 +3,7 @@ namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
 use wapmorgan\OpenApiGenerator\InitableObject;
 
-class ResultTag extends InitableObject
+class Tag extends InitableObject
 {
     /**
      * @var string Name of tag

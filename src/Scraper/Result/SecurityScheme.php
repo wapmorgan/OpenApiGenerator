@@ -3,7 +3,7 @@ namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
 use wapmorgan\OpenApiGenerator\InitableObject;
 
-class ResultSecurityScheme extends InitableObject
+class SecurityScheme extends InitableObject
 {
     /**
      * @var string ID of security scheme

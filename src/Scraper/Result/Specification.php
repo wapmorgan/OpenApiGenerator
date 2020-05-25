@@ -3,7 +3,7 @@ namespace wapmorgan\OpenApiGenerator\Scraper\Result;
 
 use wapmorgan\OpenApiGenerator\InitableObject;
 
-class ResultSpecification extends InitableObject
+class Specification extends InitableObject
 {
     /**
      * @var string|null Specification version
@@ -21,22 +21,22 @@ class ResultSpecification extends InitableObject
     public $description;
 
     /**
-     * @var ResultTag[]
+     * @var Tag[]
      */
     public $tags = [];
 
     /**
-     * @var ResultPath[]
+     * @var Endpoint[]
      */
-    public $paths = [];
+    public $endpoints = [];
 
     /**
-     * @var ResultServer[] List of servers
+     * @var Server[] List of servers
      */
     public $servers = [];
 
     /**
-     * @var ResultSecurityScheme[] List of security schemes
+     * @var SecurityScheme[] List of security schemes
      */
     public $securitySchemes = [];
 

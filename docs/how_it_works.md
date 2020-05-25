@@ -41,15 +41,15 @@ class DefaultController {
 ```php
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultPath;
-use wapmorgan\OpenApiGenerator\Scraper\Result\ResultSpecification;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 
 class OpenApiScraper extends DefaultScrapper {
     public function scrape(): Result
     {
         $result = new Result([
             'specifications' => [
-                new ResultSpecification([
+                new Specification([
                     'version' => 'main',
                     'description' => 'My API',
                     'paths' => [],
@@ -66,15 +66,14 @@ class OpenApiScraper extends DefaultScrapper {
             }
 
             // transform actionIndex -> index
-            $action_uri = strtolower(substr($matches['action'], 0, 1)).substr($matches['action'], 1);
+            $action_uri = strtolower(substr($method_reflection->getName(), 6));
 
             // add path item
-            $result->specifications[0]->paths[] = new ResultPath([
+            $result->specifications[0]->endpoints[] = new Endpoint([
                 'id' => 'default/'.$action_uri,
                 'actionCallback' => [$main_controller, $method_reflection->getName()],
             ]);
         }
-        $result->specifications[0]->totalPaths = count($result->specifications[0]->paths);
 
         return $result;
     }
@@ -173,5 +172,4 @@ paths:
 components:
   securitySchemes: {  }
 tags: []
-
 ```
