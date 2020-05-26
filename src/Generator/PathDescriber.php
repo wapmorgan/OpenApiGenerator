@@ -128,7 +128,7 @@ class PathDescriber
             }
             return $responses_schemas;
         } else if (is_object($type)) {
-            return [$this->generateSchemaForPathResultObject($declaring_class, $type)];
+            return [$this->generateSchemaForPathResultObject($declaring_class, $type, $pathResultWrapper)];
         } else {
             return null;
         }
