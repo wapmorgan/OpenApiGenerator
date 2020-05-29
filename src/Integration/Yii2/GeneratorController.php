@@ -2,7 +2,7 @@
 namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
 
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 use Yii;
@@ -17,7 +17,7 @@ use yii\helpers\Console;
  */
 class GeneratorController extends Controller
 {
-    public $scraper = DefaultScrapper::class;
+    public $scraper = DefaultScraper::class;
 
     /**
      * @var bool
@@ -156,9 +156,9 @@ class GeneratorController extends Controller
     }
 
     /**
-     * @return DefaultScrapper
+     * @return DefaultScraper
      */
-    protected function buildScraper(): DefaultScrapper
+    protected function buildScraper(): DefaultScraper
     {
         $scraper = new $this->scraper();
         return $scraper;

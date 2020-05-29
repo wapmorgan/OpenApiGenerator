@@ -10,6 +10,7 @@
             "role": "developer"
         }
     ],
+    "bin": ["bin/openapi-generator"],
     "require": {
         "php": ">=7.1.0",
         "zircote/swagger-php": "^3.0",

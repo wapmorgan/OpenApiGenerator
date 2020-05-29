@@ -3,7 +3,7 @@ namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
 
 use ReflectionMethod;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
 use wapmorgan\OpenApiGenerator\Scraper\Result\SecurityScheme;
@@ -12,7 +12,7 @@ use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Tag;
 use Yii;
 
-class CodeScraper extends DefaultScrapper
+class CodeScraper extends DefaultScraper
 {
     public $excludedModules = [];
 

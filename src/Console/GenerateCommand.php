@@ -8,7 +8,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 
 class GenerateCommand extends Command
 {
@@ -36,7 +36,7 @@ class GenerateCommand extends Command
     public function execute(InputInterface $input, OutputInterface $output)
     {
         $scraper_type = $input->getArgument('scraper');
-        /** @var DefaultScrapper $scraper */
+        /** @var DefaultScraper $scraper */
         $scraper = new $scraper_type();
 
         $output_dir = rtrim($input->getArgument('output'), '/');

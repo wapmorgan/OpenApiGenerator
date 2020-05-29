@@ -4,7 +4,7 @@ namespace wapmorgan\OpenApiGenerator\Scraper;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 
-abstract class DefaultScrapper extends ErrorableObject
+abstract class DefaultScraper extends ErrorableObject
 {
     /**
      * Should return list of controllers

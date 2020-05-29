@@ -21,4 +21,6 @@ if (!init_composer($paths)) die('Run `composer install` firstly.'.PHP_EOL);
 
 $application = new Symfony\Component\Console\Application();
 $application->add(new wapmorgan\OpenApiGenerator\Console\GenerateCommand());
+$application->add(new wapmorgan\OpenApiGenerator\Console\ScrapeCommand());
+$application->add(new wapmorgan\OpenApiGenerator\Console\InspectCommand());
 $application->run();

@@ -17,7 +17,7 @@ use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper;
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
@@ -106,11 +106,11 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param \wapmorgan\OpenApiGenerator\Scraper\DefaultScrapper $scraper
+     * @param \wapmorgan\OpenApiGenerator\Scraper\DefaultScraper $scraper
      * @return GeneratorResult
      * @throws \ReflectionException
      */
-    public function generate(DefaultScrapper $scraper): GeneratorResult
+    public function generate(DefaultScraper $scraper): GeneratorResult
     {
         $scrape_result = $scraper->scrape();
 
