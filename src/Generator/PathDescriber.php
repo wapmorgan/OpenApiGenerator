@@ -6,6 +6,8 @@ use OpenApi\Annotations\Items;
 use OpenApi\Annotations\MediaType;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Parameter;
+use OpenApi\Annotations\Property;
+use OpenApi\Annotations\RequestBody;
 use OpenApi\Annotations\Response;
 use OpenApi\Annotations\Schema;
 use phpDocumentor\Reflection\DocBlock;
@@ -141,7 +143,7 @@ class PathDescriber
      * @return null
      * @throws ReflectionException
      */
-    public function combineSchemesWithWrapper(
+    public function combineResponseWithWrapper(
         ?array $schemas,
         ReflectionMethod $actionReflection,
         ?PathResultWrapper $pathResultWrapper)
@@ -293,10 +295,10 @@ class PathDescriber
                 if (strpos($enum_string, ' ') === false) {
                     $this->generator->notice('Param enum '.$enum_string.' is incomplete', DefaultGenerator::NOTICE_WARNING);
                     continue;
-                } else {
-                    list($enum_param, $enum_list) = explode(' ', $enum_string, 2);
-                    $parameters_enums[ltrim($enum_param, '$')] = explode('|', $enum_list);
                 }
+
+                list($enum_param, $enum_list) = explode(' ', $enum_string, 2);
+                $parameters_enums[ltrim($enum_param, '$')] = explode('|', $enum_list);
             }
 
             /** @var Tag $action_parameter_example */
@@ -307,10 +309,10 @@ class PathDescriber
                 if (strpos($example_string, ' ') === false) {
                     $this->generator->notice('Param example '.$example_string.' is incomplete', DefaultGenerator::NOTICE_WARNING);
                     continue;
-                } else {
-                    list($example_param, $example_value) = explode(' ', $example_string, 2);
-                    $parameters_examples[ltrim($example_param, '$')][] = $example_value;
                 }
+
+                list($example_param, $example_value) = explode(' ', $example_string, 2);
+                $parameters_examples[ltrim($example_param, '$')][] = $example_value;
             }
         }
 
@@ -319,6 +321,15 @@ class PathDescriber
         // Generation @OA\Parameter's
         if ($actionReflection->getNumberOfParameters() > 0) {
             foreach ($actionReflection->getParameters() as $parameter) {
+                $parameter_type_kind = $this->generator->getTypeDescriber()->getKindForType($parameter->getDeclaringClass()->getName(),
+                    isset($doc_block_parameters[$parameter->getName()])
+                        ? $doc_block_parameters[$parameter->getName()]
+                        : null);
+
+                // it is body param - skip
+                if ($parameter_type_kind !== null && $parameter_type_kind !== TypeDescriber::PRIMITIVE_TYPE)
+                    continue;
+
                 $parameter_annotation = $this->generateSchemaForParameter(
                     $parameter,
                     $doc_block_parameters[$parameter->getName()] ?? null,
@@ -333,6 +344,30 @@ class PathDescriber
         }
 
         return $parameters;
+    }
+
+    /**
+     * @param ReflectionMethod $actionReflection
+     * @param DocBlock|null $docBlock
+     * @return RequestBody|null
+     */
+    public function generatePathOperationBody(ReflectionMethod $actionReflection, ?DocBlock $docBlock): ?RequestBody
+    {
+        $schema = $this->generateSchemaForRequestBody($docBlock, $actionReflection);
+
+        if ($schema === null) {
+            return null;
+        }
+
+        return new RequestBody([
+            'required' => true,
+            'content' => [
+                new MediaType([
+                    'mediaType' => 'application/json',
+                    'schema' => $schema,
+                ])
+            ],
+        ]);
     }
 
     /**
@@ -423,7 +458,7 @@ class PathDescriber
             $pathParameter->getDeclaringClass()->getName(),
             $docBlockParameter !== null ? $docBlockParameter->getType() : null,
             $defaultValue ?? null,
-            $is_nullable_parameter);
+            $is_nullable_parameter, null);
 
         if ($enum !== null && !empty($enum)) {
             $schema->enum = $enum;
@@ -455,5 +490,114 @@ class PathDescriber
     {
         $this->commonParameters[$name] = $description;
         return $this;
+    }
+
+    /**
+     * @param DocBlock|null $docBlock
+     * @param ReflectionMethod $actionReflection
+     * @return null
+     */
+    protected function generateSchemaForRequestBody(?DocBlock $docBlock, ReflectionMethod $actionReflection): ?Schema
+    {
+        /** @var array<string, Param> $doc_block_parameters */
+        $doc_block_parameters = [];
+
+        if ($docBlock !== null) {
+            /** @var Param $action_parameter */
+            foreach ($docBlock->getTagsByName('param') as $action_parameter) {
+                $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
+            }
+        }
+
+        $schema = new Schema([
+            'type' => 'object',
+            'properties' => [],
+        ]);
+
+        // Generation @OA\Parameter's
+        if ($actionReflection->getNumberOfParameters() > 0) {
+            foreach ($actionReflection->getParameters() as $parameter) {
+                $parameter_type_kind = $this->generator->getTypeDescriber()->getKindForType($parameter->getDeclaringClass()->getName(),
+                    isset($doc_block_parameters[$parameter->getName()])
+                        ? $doc_block_parameters[$parameter->getName()]->getType()
+                        : null);
+
+                // it is request param - skip
+                if ($parameter_type_kind === null || $parameter_type_kind === TypeDescriber::PRIMITIVE_TYPE)
+                    continue;
+
+                $schema->properties[$parameter->getName()] = $this->generateSchemaForBodyParameter(
+                    $parameter,
+                    $doc_block_parameters[$parameter->getName()] ?? null
+                );
+            }
+        }
+
+        if (empty($schema->properties))
+            return null;
+
+        return $schema;
+    }
+
+    /**
+     * @param ReflectionParameter $pathParameter
+     * @param Param|null $docBlockParameter
+     * @return Property|null
+     * @throws ReflectionException
+     */
+    protected function generateSchemaForBodyParameter(ReflectionParameter $pathParameter, ?Param $docBlockParameter): ?Property
+    {
+        $is_nullable_parameter = $is_required_parameter = false;
+
+        if ($docBlockParameter === null) {
+            $this->generator->notice('Body param "'.$pathParameter->getName().'" of "'
+                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
+                .'" has no doc-block at all, skipping', ErrorableObject::NOTICE_WARNING);
+            return null;
+        }
+
+        if (empty((string)$docBlockParameter->getType())) {
+            $this->generator->notice('Body param "'.$pathParameter->getName().'" of "'
+                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
+                .'" has doc-block, but type is not defined. Skipping...', ErrorableObject::NOTICE_WARNING);
+            return null;
+        }
+
+        if ($pathParameter->isOptional()) {
+            if (($default_value_constant = $pathParameter->getDefaultValueConstantName()) === null)
+                $is_nullable_parameter = true;
+            else {
+                // if looks like static::* or self::*
+                if (preg_match('~^(self|static)\:\:([a-zA-Z_0-9]+)$~', $default_value_constant, $default_value_constant_parts)) {
+                    $defaultValue = constant($pathParameter->getDeclaringClass()->getName().'::'.$default_value_constant_parts[2]);
+                } else if (defined($default_value_constant)) {
+                    $defaultValue = constant($default_value_constant);
+                } else {
+                    $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
+                        .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
+                        .'" has unexpected default value: "'.$default_value_constant.'"', ErrorableObject::NOTICE_INFO);
+                }
+
+            }
+        } else
+            $is_required_parameter = true;
+
+
+        if ($docBlockParameter !== null && $docBlockParameter->getDescription()) {
+            $description = (string)$docBlockParameter->getDescription();
+        }
+
+        /** @var Property $schema */
+        $schema = $this->generator->getTypeDescriber()->generateSchemaForType(
+            $pathParameter->getDeclaringClass()->getName(),
+            $docBlockParameter !== null ? $docBlockParameter->getType() : null,
+            $defaultValue ?? null,
+            $is_nullable_parameter, Property::class);
+        $schema->property = $pathParameter->getName();
+
+        if ($is_required_parameter && !$is_nullable_parameter)
+            $schema->required = true;
+
+        return $schema;
     }
 }

@@ -12,6 +12,10 @@ use const OpenApi\Annotations\UNDEFINED;
 
 class TypeDescriber
 {
+    public const PRIMITIVE_TYPE = 1;
+    public const COMPLEX_ABSTRACT_TYPE = 2;
+    public const COMPLEX_TYPE = 3;
+
     /**
      * @var DefaultGenerator
      */
@@ -23,10 +27,14 @@ class TypeDescriber
     protected $classesImports = [];
 
     /**
-     * @var array
+     * @var string[]
      */
     public $primitiveTypes = ['void', 'null', 'string', 'bool', 'int', 'integer', 'float', 'boolean'];
-    public $simpleTypes = ['object', 'array', 'stdclass', 'mixed'];
+
+    /**
+     * @var string[]
+     */
+    public $complexAbstractTypes = ['object', 'array', 'stdclass', 'mixed'];
 
     /**
      * TypeDescriber constructor.
@@ -43,6 +51,7 @@ class TypeDescriber
      * @param string|array|null $defaultValue
      * @param bool $isNullableType
      * @param string|null $schemaType
+     * @param null $kindOfType
      * @return Schema|Property
      * @throws ReflectionException
      */
@@ -51,7 +60,8 @@ class TypeDescriber
         ?string $typeSpecification,
         $defaultValue,
         &$isNullableType = false,
-        ?string $schemaType = null
+        ?string $schemaType = null,
+        &$kindOfType = null
     ): ?Schema
     {
         $is_iterable_type = false;
@@ -63,45 +73,13 @@ class TypeDescriber
 
         // multiple types - generate Schema for every type
         if (strpos($typeSpecification, '|') !== false) {
-            $type_specification_variants = explode('|', $typeSpecification);
-
-            if (in_array('null', $type_specification_variants, true)) {
-                $isNullableType = true;
-                unset($type_specification_variants[array_search('null', $type_specification_variants, true)]);
-            }
-
-            if (count($type_specification_variants) === 1) {
-                // if there really one type after "null" removing
-                $typeSpecification = current($type_specification_variants);
-            } else {
-                // generate schemas for few types
-                $sub_type_schemas = [];
-                foreach ($type_specification_variants as $subtypeSpecification) {
-                    $sub_type_schemas[] = $this->generateSchemaForType(
-                        $declaringClass, $subtypeSpecification, $defaultValue, $isNullableType);
-                }
-
-                if ($schemaType !== null && $schemaType !== Schema::class) {
-                    if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class)
-                        throw new \RuntimeException('Invalid target Schema-class: ' . $schemaType);
-                    switch ($schemaType) {
-//                        case Property::class:
-//                            return new Property([
-//                                'schema' => new Schema([
-//                                    'oneOf' => $sub_type_schemas,
-//                                ]),
-//                            ]);
-                        default:
-                            return new $schemaType([
-                                'oneOf' => $sub_type_schemas,
-                            ]);
-                    }
-                } else {
-                    return new Schema([
-                        'oneOf' => $sub_type_schemas,
-                    ]);
-                }
-            }
+            return $this->generateSchemaForFewTypes(
+                $typeSpecification,
+                $declaringClass,
+                $defaultValue,
+                $isNullableType,
+                $schemaType,
+                $kindOfType);
         }
 
         // remove brackets from iterable specification
@@ -111,10 +89,13 @@ class TypeDescriber
         }
 
         if (in_array(strtolower($typeSpecification), $this->primitiveTypes, true)) {
+            $kindOfType = self::PRIMITIVE_TYPE;
             $schema = $this->generateSchemaForPrimitiveType(strtolower($typeSpecification), $defaultValue, $is_iterable_type);
-        } else if (in_array(strtolower($typeSpecification), $this->simpleTypes, true)) {
-            $schema = $this->generateSchemaForSimpleType(strtolower($typeSpecification), $is_iterable_type);
+        } else if (in_array(strtolower($typeSpecification), $this->complexAbstractTypes, true)) {
+            $kindOfType = self::COMPLEX_ABSTRACT_TYPE;
+            $schema = $this->generateSchemaForComplexAbstractType(strtolower($typeSpecification), $is_iterable_type);
         } else {
+            $kindOfType = self::COMPLEX_TYPE;
             $schema = $this->generateSchemaPartsForComplexType($this->resolveLocalName($declaringClass, $typeSpecification), $is_iterable_type);
         }
 
@@ -131,6 +112,46 @@ class TypeDescriber
         }
 
         return $schema;
+    }
+
+    /**
+     * @param string $declaringClass
+     * @param string|null $typeSpecification
+     * @return int|null
+     */
+    public function getKindForType(
+        string $declaringClass,
+       ?string $typeSpecification)
+        : ?int
+    {
+        // Does not make sense to generate empty @OA\Schema
+        if ($typeSpecification === null) {
+            return null;
+        }
+
+        // multiple types - generate Schema for every type
+        if (strpos($typeSpecification, '|') !== false) {
+            $kind = null;
+            foreach (explode('|', $typeSpecification) as $type_variant) {
+                $kind = max($kind, $this->getKindForType($declaringClass, $type_variant));
+            }
+            return $kind;
+        }
+
+        // remove brackets from iterable specification
+        if (substr($typeSpecification, -2) === '[]') {
+            $typeSpecification = substr($typeSpecification, 0, -2);
+        }
+
+        if (in_array(strtolower($typeSpecification), $this->primitiveTypes, true)) {
+            return self::PRIMITIVE_TYPE;
+        }
+
+        if (in_array(strtolower($typeSpecification), $this->complexAbstractTypes, true)) {
+            return self::COMPLEX_ABSTRACT_TYPE;
+        }
+
+        return self::COMPLEX_TYPE;
     }
 
     /**
@@ -342,7 +363,7 @@ class TypeDescriber
      * @param bool $isIterableType
      * @return Schema
      */
-    public function generateSchemaForSimpleType(string $typeSpecification, bool $isIterableType)
+    public function generateSchemaForComplexAbstractType(string $typeSpecification, bool $isIterableType): Schema
     {
         // an array
         if ($typeSpecification === 'array') {
@@ -385,6 +406,67 @@ class TypeDescriber
             $new_schema->schema = $schema;
         } else {
             $new_schema->mergeProperties($schema);
+        }
+    }
+
+    /**
+     * @param string $typeSpecification
+     * @param string $declaringClass
+     * @param $defaultValue
+     * @param bool $isNullableType
+     * @param string|null $schemaType
+     * @return mixed|Property|Schema|null
+     * @throws ReflectionException
+     */
+    protected function generateSchemaForFewTypes(
+        string $typeSpecification,
+        string $declaringClass,
+        $defaultValue,
+        bool &$isNullableType,
+        ?string $schemaType,
+        &$kindOfType = null)
+    {
+        $type_specification_variants = explode('|', $typeSpecification);
+
+        if (in_array('null', $type_specification_variants, true)) {
+            $isNullableType = true;
+            unset($type_specification_variants[array_search('null', $type_specification_variants, true)]);
+        }
+
+        if (count($type_specification_variants) === 1) {
+            // if there really one type after "null" removing
+            $typeSpecification = current($type_specification_variants);
+            return $this->generateSchemaForType($declaringClass, current($type_specification_variants), $defaultValue, $isNullableType, $schemaType, $kindOfType);
+        }
+
+        // generate schemas for few types
+        $sub_type_schemas = [];
+
+        foreach ($type_specification_variants as $subtypeSpecification) {
+            $sub_type_schemas[] = $this->generateSchemaForType(
+                $declaringClass, $subtypeSpecification, $defaultValue, $isNullableType, $schemaType, $variantType);
+            if ($kindOfType === null || $kindOfType < $variantType) $kindOfType = $variantType;
+        }
+
+        if ($schemaType !== null && $schemaType !== Schema::class) {
+            if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class)
+                throw new \RuntimeException('Invalid target Schema-class: ' . $schemaType);
+            switch ($schemaType) {
+//                        case Property::class:
+//                            return new Property([
+//                                'schema' => new Schema([
+//                                    'oneOf' => $sub_type_schemas,
+//                                ]),
+//                            ]);
+                default:
+                    return new $schemaType([
+                        'oneOf' => $sub_type_schemas,
+                    ]);
+            }
+        } else {
+            return new Schema([
+                'oneOf' => $sub_type_schemas,
+            ]);
         }
     }
 }

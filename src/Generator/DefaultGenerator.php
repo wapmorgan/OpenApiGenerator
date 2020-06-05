@@ -5,9 +5,11 @@ use Exception;
 use OpenApi\Annotations\Components;
 use OpenApi\Annotations\ExternalDocumentation;
 use OpenApi\Annotations\Info;
+use OpenApi\Annotations\MediaType;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\PathItem;
+use OpenApi\Annotations\RequestBody;
 use OpenApi\Annotations\SecurityScheme;
 use OpenApi\Annotations\Server;
 use OpenApi\Annotations\Tag;
@@ -339,19 +341,23 @@ class DefaultGenerator extends ErrorableObject
             $doc_block = $this->docBlockFactory->create($path_doc);
         }
 
+        $path_request_body = $this->pathDescriber->generatePathOperationBody($path_reflection, $doc_block);
+
+        // if request has body and method set to GET, change it to POST
+        if ($path_request_body !== null && strcasecmp($resultPath->httpMethod, 'get') === 0) {
+            $resultPath->httpMethod = 'post';
+            $this->notice('Http method of '.$resultPath->id.' changed from '.$resultPath->httpMethod.' to POST because of request body', self::NOTICE_IMPORTANT);
+        }
+
         $operation_class = '\OpenApi\Annotations\\'.ucfirst(strtolower($resultPath->httpMethod));
         /** @var Operation $path_method */
         $path_method = $path->{strtolower($resultPath->httpMethod)} = new $operation_class([
             'operationId' => $resultPath->id.'-'.$resultPath->httpMethod,
             'summary' => $doc_block ? $doc_block->getSummary() : null,
-            'tags' => [],
+            'tags' => $resultPath->tags,
         ]);
 
         $this->pathDescriber->generatePathDescription($path_method, $doc_block);
-
-        foreach ($resultPath->tags as $tag) {
-            $path_method->tags[] = $tag;
-        }
 
         if (!empty($resultPath->securitySchemes)) {
             $path_method->security = [];
@@ -364,16 +370,15 @@ class DefaultGenerator extends ErrorableObject
         // generate responses from @return
         if (!isset($resultPath->result)) {
             $path_response_schemas = $this->pathDescriber->generatePathMethodResponsesFromDocBlock($path_reflection, $doc_block, $resultPath->resultWrapper);
-        }
-        // generate responses from passed {pathResult}
-        else {
+        } else { // generate responses from passed $pathResult
             $path_response_schemas = $this->pathDescriber->generationPathMethodResponseFromType($path_reflection, $resultPath->result, $resultPath->resultWrapper);
         }
 
         $path_method->responses = [
-            $this->pathDescriber->combineSchemesWithWrapper($path_response_schemas, $path_reflection, $resultPath->resultWrapper)
+            $this->pathDescriber->combineResponseWithWrapper($path_response_schemas, $path_reflection, $resultPath->resultWrapper)
         ];
         $path_method->parameters = $this->pathDescriber->generatePathOperationParameters($path_reflection, $doc_block);
+        $path_method->requestBody = $path_request_body;
 
         return $path;
     }
