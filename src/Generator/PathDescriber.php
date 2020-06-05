@@ -323,11 +323,12 @@ class PathDescriber
             foreach ($actionReflection->getParameters() as $parameter) {
                 $parameter_type_kind = $this->generator->getTypeDescriber()->getKindForType($parameter->getDeclaringClass()->getName(),
                     isset($doc_block_parameters[$parameter->getName()])
-                        ? $doc_block_parameters[$parameter->getName()]
+                        ? $doc_block_parameters[$parameter->getName()]->getType()
                         : null);
 
                 // it is body param - skip
-                if ($parameter_type_kind !== null && $parameter_type_kind !== TypeDescriber::PRIMITIVE_TYPE)
+                if ($parameter_type_kind !== null
+                    && $parameter_type_kind !== TypeDescriber::PRIMITIVE_TYPE)
                     continue;
 
                 $parameter_annotation = $this->generateSchemaForParameter(
@@ -594,6 +595,7 @@ class PathDescriber
             $defaultValue ?? null,
             $is_nullable_parameter, Property::class);
         $schema->property = $pathParameter->getName();
+        $schema->description = $description ?? null;
 
         if ($is_required_parameter && !$is_nullable_parameter)
             $schema->required = true;
