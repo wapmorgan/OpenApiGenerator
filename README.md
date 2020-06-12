@@ -168,7 +168,7 @@ Detailed information about Scraper result: [in another document](docs/scraper_re
 
 # ToDo
 - [x] Support for few operations on one endpoint (GET/POST/PUT/DELETE/...).
-- [ ] Support for body parameters (when parameters are complex objects)
+- [x] Support for body parameters (when parameters are complex objects)
 - [ ] Support for few responses (with different HTTP codes).
 - [ ] Extracting class types into separate components (into openapi components).
 - [ ] Add `@paramFormat` for specifying parameter format.
