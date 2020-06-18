@@ -26,6 +26,16 @@ use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 
 class DefaultGenerator extends ErrorableObject
 {
+    public const CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS = 1;
+    public const TREAT_COMPLEX_ARGUMENTS_AS_BODY = 2;
+    public const PARSE_PARAMETERS_FROM_ENDPOINT = 3;
+
+    protected $settings = [
+        self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS => false,
+        self::TREAT_COMPLEX_ARGUMENTS_AS_BODY => false,
+        self::PARSE_PARAMETERS_FROM_ENDPOINT => false,
+    ];
+
     /**
      * @var callable|null
      */
@@ -227,10 +237,35 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
+     * @param int $setting
+     * @param bool $value
+     */
+    public function changeSetting(int $setting, bool $value): void
+    {
+        if (!isset($this->settings[$setting])) {
+            throw new \InvalidArgumentException('Setting '.$setting.' does not exist!');
+        }
+
+        $this->settings[$setting] = $value;
+    }
+
+    /**
+     * @param int $setting
+     * @return bool
+     */
+    public function getSetting(int $setting): bool
+    {
+        if (!isset($this->settings[$setting])) {
+            throw new \InvalidArgumentException('Setting '.$setting.' does not exist!');
+        }
+        return $this->settings[$setting];
+    }
+
+    /**
      * @param callable|null $callback
      * @param array $params
      */
-    protected function call(?callable $callback, array $params)
+    protected function call(?callable $callback, array $params): void
     {
         if ($callback === null) return;
         call_user_func_array($callback, $params);
@@ -341,12 +376,16 @@ class DefaultGenerator extends ErrorableObject
             $doc_block = $this->docBlockFactory->create($path_doc);
         }
 
-        $path_request_body = $this->pathDescriber->generatePathOperationBody($path_reflection, $doc_block);
+        if ($this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY]) {
+            $path_request_body = $this->pathDescriber->generatePathOperationBody($path_reflection, $doc_block);
 
-        // if request has body and method set to GET, change it to POST
-        if ($path_request_body !== null && strcasecmp($resultPath->httpMethod, 'get') === 0) {
-            $resultPath->httpMethod = 'post';
-            $this->notice('Http method of '.$resultPath->id.' changed from '.$resultPath->httpMethod.' to POST because of request body', self::NOTICE_IMPORTANT);
+            // if request has body and method set to GET, change it to POST
+            if ($path_request_body !== null
+                && $this->settings[self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS]
+                && strcasecmp($resultPath->httpMethod, 'get') === 0) {
+                $resultPath->httpMethod = 'post';
+                $this->notice('Http method of ' . $resultPath->id . ' changed from ' . $resultPath->httpMethod . ' to POST because of request body', self::NOTICE_IMPORTANT);
+            }
         }
 
         $operation_class = '\OpenApi\Annotations\\'.ucfirst(strtolower($resultPath->httpMethod));
@@ -377,8 +416,24 @@ class DefaultGenerator extends ErrorableObject
         $path_method->responses = [
             $this->pathDescriber->combineResponseWithWrapper($path_response_schemas, $path_reflection, $resultPath->resultWrapper)
         ];
+
         $path_method->parameters = $this->pathDescriber->generatePathOperationParameters($path_reflection, $doc_block);
-        $path_method->requestBody = $path_request_body;
+
+        if ($this->settings[self::PARSE_PARAMETERS_FROM_ENDPOINT]
+            && preg_match_all('~\{([a-z]+)\}~i', $resultPath->id, $matches) > 0) {
+//            var_dump($matches);
+            foreach ($matches[1] as $match) {
+                foreach ($path_method->parameters as $parameter) {
+                    if ($parameter->name === $match) {
+                        $parameter->in = 'path';
+                    }
+                }
+            }
+        }
+
+        if (isset($path_request_body)) {
+            $path_method->requestBody = $path_request_body;
+        }
 
         return $path;
     }
