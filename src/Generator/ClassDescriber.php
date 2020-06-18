@@ -4,6 +4,7 @@ namespace wapmorgan\OpenApiGenerator\Generator;
 use OpenApi\Annotations\Property as PropertyAnnotation;
 use OpenApi\Annotations\Schema;
 use phpDocumentor\Reflection\DocBlock\Tag;
+use phpDocumentor\Reflection\DocBlock\Tags\InvalidTag;
 use phpDocumentor\Reflection\DocBlock\Tags\Property as PropertyDocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use ReflectionClass;
@@ -368,6 +369,14 @@ class ClassDescriber
                     // listing all properties
                     /** @var PropertyDocBlock $object_field */
                     foreach ($doc->getTagsByName($class_virtual_property) as $object_field) {
+
+                        if ($object_field instanceof InvalidTag) {
+                            $this->generator->notice('Tag "' . (string)$object_field . '" of "'
+                                . $class . '" is invalid: '.$object_field->getException()->getMessage(),
+                            ErrorableObject::NOTICE_WARNING);
+                            continue;
+                        }
+
                         if (empty((string)$object_field->getType())) {
                             $this->generator->notice('Property "' . $object_field->getVariableName() . '" of "'
                                 . $class . '" has doc-block, but type is not defined. Skipping...',
