@@ -45,88 +45,21 @@ Also, there is support for non-usual php-doc like `@paramEnum` or `@paramExample
 - A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Slim\CodeScraper`](src/Integration/Slim/CodeScraper.php)
 
 # How it works
-Simplified example of how it works.
 
-*A controller (class) and action (method)*:
-```php
-class MainController extends Controller {
-    /**
-     * Sends test message
-     *
-     * Sends simple text message to an admin
-     * @param string $topic Topic of the message
-     * @param string $text Text of the message
-     * @return ResultSend Result of send
-     */
-    public function actionTestSendMessage($topic, $text)
-    {
-        // ...
-        // ... here goes some work ...
-        // ...
-        return new ResultSend([
-            'success' => true,
-            'datetime' => (new DateTime())->format(DateTime::ATOM),
-        ]);
-    }
-}
-```
-
-*Generated openapi spec*:
-```yaml
-  /main/testSendMessage:
-    get:
-      tags:
-        - main
-      summary: 'Sends test message'
-      description: 'Sends simple text message to an admin'
-      operationId: /main/testSendMessage-GET
-      parameters:
-        -
-          name: topic
-          in: query
-          description: 'Topic of the message'
-          required: true
-          schema:
-            type: string
-            nullable: false
-        -
-          name: text
-          in: query
-          description: 'Text of the message'
-          required: true
-          schema:
-            type: string
-            nullable: false
-      responses:
-        '200':
-          description: 'Successful response'
-          content:
-            application/json:
-              schema:
-                - { properties: { result: { description: "\nResult of send", type: boolean, nullable: false } } }
-```
+1. You create your own _scraper_ (a class, inheriting `DefaultScraper`) or extend one of [predefined scrapers](#integrations), which should return a special result with:
+    - list of your API specifications (~ separate OpenApi-files)
+    - paths, tags, security schemes, ...
+    In two words, you need to create a scraper that will find all API endpoints of your application, collect them and pass it in special format.
+2. You pass it to a generator, it generates ready-to-use OpenApi-specifications.
+3. You save these specifications in different files / places or move to different hosts.
 
 If your need full process example, go to [How it works](docs/how_it_works.md) file.
+Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
 
 ## What it can parse
-### from Controller
 
-All actions within one controller will have with tag of it.
-
-```php
-/**
- * @description Main functions
- * @docs http://...
- */
-class MainController {
-}
-```
-
-- `@description` - description for tag.
-- `@docs` - URL to page with tag description.
-
-### from Action
+### from Endpoint
 
 ```php
 /**
@@ -144,20 +77,10 @@ public function actionTest($data)
   // ...
 }
 ```
-
+- summary and full description
 - `@paramEnum` lists all values that can be used in parameter. Syntax: `@paramEnum $variable 1st[|2nd[...]]`
 - `@paramExample` sets example for parameter. Syntax: `@paramExample $variable string_value`
-
-# How to use it
-
-1. You create your own _scraper_ (a class, inheriting `DefaultScraper`) or extend one of [predefined scrapers](#integrations), which should return a special result with:
-    - list of your API specifications (~ separate OpenApi-files)
-    - paths, tags, security schemes, ...
-    In two words, you need to create a scraper that will find all API endpoints of your application, collect them and pass it in special format.
-2. You pass it to a generator, it generates ready-to-use OpenApi-specifications.
-3. You save these specifications in different files / places or move to different hosts.
-
-Detailed information about Scraper result: [in another document](docs/scraper_result.md).
+- `@result`
 
 # Limitations
 - Only query parameters supported (`url?param1=...&param2=...`)
