@@ -138,7 +138,6 @@ class MainController {
  * @paramEnum $data all|one|two
  * @paramExample $data two
  * @return TestResponse
- * @auth
  */
 public function actionTest($data)
 {
@@ -148,7 +147,6 @@ public function actionTest($data)
 
 - `@paramEnum` lists all values that can be used in parameter. Syntax: `@paramEnum $variable 1st[|2nd[...]]`
 - `@paramExample` sets example for parameter. Syntax: `@paramExample $variable string_value`
-- `@auth` 
 
 # How to use it
 
