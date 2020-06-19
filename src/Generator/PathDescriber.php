@@ -30,6 +30,19 @@ class PathDescriber
      */
     protected $generator;
 
+    /**
+     * @var array
+     */
+    protected $basicFormats = [
+        'string' => ['date', 'date-time', 'password', 'byte', 'binary'],
+        'integer' => ['float', 'double', 'int32', 'int64'],
+    ];
+
+    /**
+     * @var array
+     */
+    protected $customFormats = [];
+
     protected $commonParameters = [];
 
     /**
@@ -39,6 +52,28 @@ class PathDescriber
     public function __construct(DefaultGenerator $generator)
     {
         $this->generator = $generator;
+    }
+
+    /**
+     * @param string $name
+     * @param $description
+     * @return $this
+     */
+    public function setCommonParameterDescription(string $name, string $description): PathDescriber
+    {
+        $this->commonParameters[$name] = $description;
+        return $this;
+    }
+
+    /**
+     * @param string $formatName
+     * @param array $formatConfig
+     * @return $this
+     */
+    public function setCustomFormat(string $formatName, array $formatConfig): PathDescriber
+    {
+        $this->customFormats[$formatName] = $formatConfig;
+        return $this;
     }
 
     /**
@@ -279,7 +314,7 @@ class PathDescriber
     {
         /** @var array<string, Param> $doc_block_parameters */
         $doc_block_parameters = [];
-        $parameters_enums = $parameters_examples = [];
+        $parameters_enums = $parameters_examples = $parameters_formats = [];
 
         if ($docBlock !== null) {
             /** @var Param $action_parameter */
@@ -314,6 +349,20 @@ class PathDescriber
                 list($example_param, $example_value) = explode(' ', $example_string, 2);
                 $parameters_examples[ltrim($example_param, '$')][] = $example_value;
             }
+
+            /** @var Tag $action_parameter_example */
+            foreach ($docBlock->getTagsByName('paramFormat') as $action_parameter_format) {
+                $format_string = $action_parameter_format->getDescription() !== null
+                    ? (string)$action_parameter_format->getDescription()
+                    : null;
+                if (strpos($format_string, ' ') === false) {
+                    $this->generator->notice('Param format '.$format_string.' is incomplete', DefaultGenerator::NOTICE_WARNING);
+                    continue;
+                }
+
+                list($format_param, $format_value) = explode(' ', $format_string, 2);
+                $parameters_formats[ltrim($format_param, '$')][] = $format_value;
+            }
         }
 
         $parameters = [];
@@ -334,6 +383,7 @@ class PathDescriber
                 $parameter_annotation = $this->generateSchemaForParameter(
                     $parameter,
                     $doc_block_parameters[$parameter->getName()] ?? null,
+                    $parameters_formats[$parameter->getName()] ?? null,
                     $parameters_enums[$parameter->getName()] ?? null,
                     $parameters_examples[$parameter->getName()] ?? null,
                 );
@@ -399,6 +449,7 @@ class PathDescriber
     /**
      * @param ReflectionParameter $pathParameter
      * @param Param|null $docBlockParameter
+     * @param string|null $format
      * @param array|null $enum
      * @param array|null $examples
      * @return Parameter|null
@@ -407,6 +458,7 @@ class PathDescriber
     public function generateSchemaForParameter(
         ReflectionParameter $pathParameter,
         ?Param $docBlockParameter = null,
+        ?string $format = null,
         ?array $enum = null,
         ?array $examples = null
     ): ?Parameter
@@ -449,6 +501,12 @@ class PathDescriber
 
         if ($docBlockParameter !== null && $docBlockParameter->getDescription()) {
             $description = (string)$docBlockParameter->getDescription();
+
+            if ($this->generator->getSetting(DefaultGenerator::PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION)
+                && strpos($description, ' ') !== false
+                && preg_match('~^\(([a-z]+)\)$~i', strstr($description, ' ', true), $possible_format_match)) {
+                $possible_format = $possible_format_match[1];
+            }
         }
 
         if (!isset($description) || empty($description)) {
@@ -461,12 +519,27 @@ class PathDescriber
             $defaultValue ?? null,
             $is_nullable_parameter, null);
 
+        if ($schema === null) {
+            $this->generator->notice('Schema for '.$pathParameter->getName().' is invalid', DefaultGenerator::NOTICE_ERROR);
+            return null;
+        }
+
         if ($enum !== null && !empty($enum)) {
             $schema->enum = $enum;
         }
 
         if ($examples !== null && !empty($examples)) {
             $schema->example = current($examples);
+        }
+
+        if (isset($possible_format)) {
+            if (in_array($possible_format, $this->basicFormats[$schema->type], true)) {
+                $schema->format = $possible_format;
+                $description = substr($description, strlen('('.$possible_format.') '));
+            } else if (isset($this->customFormats[$possible_format])) {
+                $schema->mergeProperties((object)$this->customFormats[$possible_format]);
+                $description = substr($description, strlen('('.$possible_format.') '));
+            }
         }
 
         $parameter = new Parameter([
@@ -480,17 +553,6 @@ class PathDescriber
             $parameter->required = true;
 
         return $parameter;
-    }
-
-    /**
-     * @param $name
-     * @param $description
-     * @return $this
-     */
-    public function setCommonParameter($name, $description)
-    {
-        $this->commonParameters[$name] = $description;
-        return $this;
     }
 
     /**

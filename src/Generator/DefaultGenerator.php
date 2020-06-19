@@ -29,11 +29,13 @@ class DefaultGenerator extends ErrorableObject
     public const CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS = 1;
     public const TREAT_COMPLEX_ARGUMENTS_AS_BODY = 2;
     public const PARSE_PARAMETERS_FROM_ENDPOINT = 3;
+    public const PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION = 4;
 
     protected $settings = [
         self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS => false,
         self::TREAT_COMPLEX_ARGUMENTS_AS_BODY => false,
         self::PARSE_PARAMETERS_FROM_ENDPOINT => false,
+        self::PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION => false,
     ];
 
     /**
@@ -421,7 +423,6 @@ class DefaultGenerator extends ErrorableObject
 
         if ($this->settings[self::PARSE_PARAMETERS_FROM_ENDPOINT]
             && preg_match_all('~\{([a-z]+)\}~i', $resultPath->id, $matches) > 0) {
-//            var_dump($matches);
             foreach ($matches[1] as $match) {
                 foreach ($path_method->parameters as $parameter) {
                     if ($parameter->name === $match) {

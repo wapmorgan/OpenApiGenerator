@@ -22,7 +22,7 @@ class ClassDescriber
         CLASS_PUBLIC_PROPERTIES = 2,
 
         // Allowing to redirect describing to another type
-        CLASS_SCHEMA_PROPERTY = 10;
+        CLASS_REDIRECTION_PROPERTY = 10;
 
     /**
      * @var DefaultGenerator
@@ -41,7 +41,7 @@ class ClassDescriber
                     'example' => true,
                 ],
             ],
-            self::CLASS_SCHEMA_PROPERTY => 'schema',
+            self::CLASS_REDIRECTION_PROPERTY => 'schema',
         ],
     ];
 
@@ -460,10 +460,10 @@ class ClassDescriber
      * @param string $class
      * @return bool|mixed
      */
-    protected function getSchemaPropertyForClass(string $class)
+    protected function getRedirectionPropertyForClass(string $class)
     {
         $rules = $this->getDescribingRulesForClass($class);
-        return isset($rules[self::CLASS_SCHEMA_PROPERTY]) ? $rules[self::CLASS_SCHEMA_PROPERTY] : false;
+        return $rules[self::CLASS_REDIRECTION_PROPERTY] ?? false;
     }
 
     /**
@@ -491,7 +491,7 @@ class ClassDescriber
     protected function getRedirection(ReflectionClass $reflection)
     {
         // check for redirection tag in Marshaller
-        $schema_tag = $this->getSchemaPropertyForClass($reflection->getName());
+        $schema_tag = $this->getRedirectionPropertyForClass($reflection->getName());
 
         if ($schema_tag === false)
             return null;
