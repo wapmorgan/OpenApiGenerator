@@ -81,6 +81,23 @@ public function actionTest($data)
 - Parameter `$data` that should be string or omitted. Also, it can have one of values: `all`, `one` or `two`. Example of value is `two`.
 - Resulting data: an object of class TestResponse (class properties or php-doc will be parsed and described)
 
+# Settings
+DefaultGenerator provides list of settings to tune generator.
+
+- `DefaultGenerator::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS` - if callback has arguments with `object`, `array`, `stdclass`, `mixed` type or class-typed, method of argument will be changed to `POST` and these arguments will be placed as `body` data in json-format.
+- `DefaultGenerator::TREAT_COMPLEX_ARGUMENTS_AS_BODY` -
+- `DefaultGenerator::PARSE_PARAMETERS_FROM_ENDPOINT` - if callback `id` has macroses (`users/{id}`), these arguments will be parsed as normal callback arguments.
+- `DefaultGenerator::PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION` - if php-doc for callback argument in first word after argument variable has one of predefined sub-types (`@param string $arg SUBTYPE Full parameter description `), this will change sub-type in resulting specification.
+For example, for `string` format there are subtypes: `date`, `date-time`, `password`, `byte`, `binary`, for `integer` there are: `float`, `double`, `int32`, `int64`.
+Also, you can defined custom format with `DefaultGenerator::setCustomFormat($format, $formatConfig)`.
+
+Usage:
+```php
+$generator->changeSetting(DefaultGenerator::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS, true);
+```
+
+By default, they all are disabled.
+
 # Limitations
 - Only query parameters supported (`url?param1=...&param2=...`)
 - Only one response type supported - HTTP 200 response
