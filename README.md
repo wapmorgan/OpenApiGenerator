@@ -46,20 +46,19 @@ Also, there is support for non-usual php-doc like `@paramEnum` or `@paramExample
 
 # How it works
 
-1. You create your own _scraper_ (a class, inheriting `DefaultScraper`) or extend one of [predefined scrapers](#integrations), which should return a special result with:
-    - list of your API specifications (~ separate OpenApi-files)
-    - paths, tags, security schemes, ...
-    In two words, you need to create a scraper that will find all API endpoints of your application, collect them and pass it in special format.
-2. You pass it to a generator, it generates ready-to-use OpenApi-specifications.
-3. You save these specifications in different files / places or move to different hosts.
+1. You create your own _scraper_, which should return a special result with list of your API endpoints (with tags, security schemes and so on), which in most cases is just a callback.
+This callback represents **only** one endpoint of your API.
+2. Generator accepts this list and parses information:
+    - Callback parameters (from callback signature or callback php-doc)
+    - Callback information (from php-doc)
+    - Callback result (from php-doc)
 
 If your need full process example, go to [How it works](docs/how_it_works.md) file.
 Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
-
 ## What it can parse
-
-### from Endpoint
+By default it parses only common information.
+### from Callback
 
 ```php
 /**
@@ -77,10 +76,10 @@ public function actionTest($data)
   // ...
 }
 ```
-- summary and full description
-- `@paramEnum` lists all values that can be used in parameter. Syntax: `@paramEnum $variable 1st[|2nd[...]]`
-- `@paramExample` sets example for parameter. Syntax: `@paramExample $variable string_value`
-- `@result`
+
+- Summary and full description
+- Parameter `$data` that should be string or omitted. Also, it can have one of values: `all`, `one` or `two`. Example of value is `two`.
+- Resulting data: an object of class TestResponse (class properties or php-doc will be parsed and described)
 
 # Limitations
 - Only query parameters supported (`url?param1=...&param2=...`)
@@ -89,7 +88,7 @@ public function actionTest($data)
 
 # ToDo
 - [x] Support for few operations on one endpoint (GET/POST/PUT/DELETE/...).
-- [x] Support for body parameters (when parameters are complex objects)
+- [x] Support for body parameters (when parameters are complex objects) - partially.
 - [ ] Support for few responses (with different HTTP codes).
 - [ ] Extracting class types into separate components (into openapi components).
-- [ ] Add `@paramFormat` for specifying parameter format.
+- [ ] Add `@paramFormat` for specifying parameter format - partially.
