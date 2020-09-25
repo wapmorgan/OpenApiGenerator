@@ -71,7 +71,7 @@ class ClassDescriber
         // get first non-empty class for describing
         $describable_class = $this->findFirstDescribableClass($reflection);
         if ($describable_class === null) {
-            $this->generator->notice('Could not find any describable parent of '.$class, ErrorableObject::NOTICE_INFO);
+            $this->generator->notice('Could not find any describable parent of '.$class, ErrorableObject::NOTICE_WARNING);
             return null;
         }
 
@@ -86,7 +86,7 @@ class ClassDescriber
                 }
 
                 if (!$reflection->hasProperty($redirection)) {
-                    $this->generator->notice('Could not find redirection property '.$redirection.' in class '.$class, ErrorableObject::NOTICE_INFO);
+                    $this->generator->notice('Could not find redirection property '.$redirection.' in class '.$class, ErrorableObject::NOTICE_WARNING);
                     return null;
                 }
 
@@ -95,8 +95,10 @@ class ClassDescriber
                 return $this->generator->getTypeDescriber()->generateSchemaForType(
                     $describable_class->getName(),
                     $properties[$redirection].($is_iterable ? '[]' : null), null);
+            } elseif (class_exists($redirection)) {
+                return $this->generator->getTypeDescriber()->generateSchemaForType($describable_class->getName(), $redirection, null);
             } else {
-                $this->generator->notice('Redirection tag in '.$class.' should start with $', ErrorableObject::NOTICE_INFO);
+                $this->generator->notice('Redirection tag in '.$class.' should start with $ or be a class', ErrorableObject::NOTICE_WARNING);
                 return null;
             }
         }
@@ -118,14 +120,14 @@ class ClassDescriber
     {
         $reflection = new ReflectionObject($object);
         if ($reflection === false) {
-            $this->generator->notice(sprintf('Object of class "%s" could not be found', get_class($object)), ErrorableObject::NOTICE_ERROR);
+            $this->generator->notice(sprintf('Object of class "%s" could not be found', get_class($object)), ErrorableObject::NOTICE_WARNING);
             return null;
         }
 
         // get first non-empty class for describing
         $describable_class = $this->findFirstDescribableClass($reflection);
         if ($describable_class === null) {
-            $this->generator->notice('Could not find any describable parent of object of class '.get_class($object), ErrorableObject::NOTICE_INFO);
+            $this->generator->notice('Could not find any describable parent of object of class '.get_class($object), ErrorableObject::NOTICE_WARNING);
             return null;
         }
 
@@ -140,13 +142,15 @@ class ClassDescriber
                 }
 
                 if (!isset($object->{$redirection})) {
-                    $this->generator->notice('Could not find redirection property '.$redirection.' in object of class '.get_class($object), ErrorableObject::NOTICE_INFO);
+                    $this->generator->notice('Could not find redirection property '.$redirection.' in object of class '.get_class($object), ErrorableObject::NOTICE_WARNING);
                     return null;
                 }
 
                 return $this->generator->getTypeDescriber()->generateSchemaForObject($object->{$redirection}, $is_iterable);
+            } elseif (class_exists($redirection)) {
+                return $this->generator->getTypeDescriber()->generateSchemaForType($describable_class->getName(), $redirection, null);
             } else {
-                $this->generator->notice('Redirection tag in '.get_class($object).' should start with $', ErrorableObject::NOTICE_INFO);
+                $this->generator->notice('Redirection tag in '.get_class($object).' should start with $', ErrorableObject::NOTICE_WARNING);
                 return null;
             }
         }
@@ -213,7 +217,8 @@ class ClassDescriber
     ): PropertyAnnotation
     {
         // if type is a link to class/object property's value
-        if (property_exists($declaringClass, $type = trim($propertyTag->getType(), '\\[]'))) {
+        if (property_exists($declaringClass, trim($propertyTag->getType(), '\\[]'))) {
+            $type = trim($propertyTag->getType(), '\\');
             $iterable = false;
             if (substr($type, -2) == '[]') {
                 $type = substr($type, 0, -2);
@@ -231,7 +236,7 @@ class ClassDescriber
                 /** @var PropertyAnnotation $property */
                 $property = $this->generator->getTypeDescriber()->generateSchemaForType(
                     $declaringClass,
-                    $properties[$type],
+                    $properties[$type].($iterable ? '[]' : null),
                     null,
                     $isNullable,
                     PropertyAnnotation::class);

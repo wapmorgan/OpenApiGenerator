@@ -385,7 +385,7 @@ class DefaultGenerator extends ErrorableObject
             if ($path_request_body !== null
                 && $this->settings[self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS]
                 && strcasecmp($resultPath->httpMethod, 'get') === 0) {
-                $this->notice('Http method of ' . $resultPath->id . ' changed from ' . $resultPath->httpMethod . ' to POST because of request body', self::NOTICE_IMPORTANT);
+                $this->notice('Http method of ' . $resultPath->id . ' changed from "' . $resultPath->httpMethod . '" to "post" because of request body', self::NOTICE_IMPORTANT);
                 $resultPath->httpMethod = 'post';
             }
         }
