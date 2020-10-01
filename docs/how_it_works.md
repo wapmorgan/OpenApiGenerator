@@ -1,5 +1,31 @@
 # Example of how it works
 
+# Simple example
+By default, it parses only common information from endpoint.
+
+```php
+/**
+ * Action summary
+ *
+ * Action detailed description
+ * on few lines
+ * @param string|null $data Data fo action
+ * @paramEnum $data all|one|two
+ * @paramExample $data two
+ * @return TestResponse
+ */
+public function actionTest($data)
+{
+  // ...
+}
+```
+
+- Summary and full description
+- Parameter `$data` that should be string or omitted. Also, it can have one of values: `all`, `one` or `two`. Example of value is `two`.
+- Resulting data: an object of class TestResponse (class properties or php-doc will be parsed and described)
+
+# Complex example
+
 Let's create a simple API with 3 methods and set-up automatic OpenApi-configuration generation in 3 steps:
 
 0. Create one controller with methods:
