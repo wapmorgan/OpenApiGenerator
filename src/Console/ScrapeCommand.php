@@ -8,7 +8,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 
-class ScrapeCommand extends Command
+class ScrapeCommand extends BasicCommand
 {
     /**
      * @var string
@@ -32,24 +32,42 @@ class ScrapeCommand extends Command
     public function execute(InputInterface $input, OutputInterface $output)
     {
         $scraper_type = $input->getArgument('scraper');
-        /** @var DefaultScraper $scraper */
-        $scraper = new $scraper_type();
 
+        $scraper = $this->createScraper($scraper_type);
         $scrape_result = $scraper->scrape();
 
+        switch (count($scrape_result->specifications)) {
+            case 0:
+                $output->writeln('No available specifications');
+                break;
+            case 1:
+                $this->printSpecification($output, null, $scrape_result->specifications[0]->endpoints);
+                break;
+            default:
+                foreach ($scrape_result->specifications as $specification) {
+                    $this->printSpecification($output, $specification->title.' '.$specification->version, $specification->endpoints);
+                }
+                break;
+        }
+
+        return 0;
+    }
+
+    protected function printSpecification(OutputInterface $output, ?string $title, array $endpoints)
+    {
+        if (!empty($title)) {
+            $output->writeln($title);
+        }
         $table = new Table($output);
         $table->setHeaders(['method', 'service', 'callable', 'tags']);
-
-        foreach ($scrape_result->specifications[0]->endpoints as $endpoint) {
+        foreach ($endpoints as $endpoint) {
             $table->addRow([
                 $endpoint->httpMethod,
                 $endpoint->id,
-                json_encode($endpoint->callback),
+                json_encode($endpoint->callback, JSON_THROW_ON_ERROR),
                 implode(', ', $endpoint->tags)
             ]);
         }
         $table->render();
-
-        return 0;
     }
 }

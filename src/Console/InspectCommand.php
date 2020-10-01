@@ -12,8 +12,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 
-class InspectCommand extends Command
+class InspectCommand extends BasicCommand
 {
     /**
      * @var string
@@ -37,12 +39,11 @@ class InspectCommand extends Command
     public function execute(InputInterface $input, OutputInterface $output)
     {
         $scraper_type = $input->getArgument('scraper');
-        /** @var DefaultScraper $scraper */
-        $scraper = new $scraper_type();
+        $scraper = $this->createScraper($scraper_type);
+
         $generator = new DefaultGenerator();
         $result = $generator->generate($scraper);
 
-        /** @var GeneratorResultSpecification $specification */
         $specification = $result->specifications[0];
 
         $table = new Table($output);

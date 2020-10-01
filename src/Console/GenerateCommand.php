@@ -10,7 +10,7 @@ use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 
-class GenerateCommand extends Command
+class GenerateCommand extends BasicCommand
 {
     /**
      * @var string
@@ -36,8 +36,7 @@ class GenerateCommand extends Command
     public function execute(InputInterface $input, OutputInterface $output)
     {
         $scraper_type = $input->getArgument('scraper');
-        /** @var DefaultScraper $scraper */
-        $scraper = new $scraper_type();
+        $scraper = $this->createScraper($scraper_type);
 
         $output_dir = rtrim($input->getArgument('output'), '/');
         if (!is_dir($output_dir)) {
