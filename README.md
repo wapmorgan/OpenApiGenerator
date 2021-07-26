@@ -98,3 +98,4 @@ By default, they all are disabled.
 - [ ] Support for few responses (with different HTTP codes).
 - [ ] Extracting class types into separate components (into openapi components).
 - [ ] Add `@paramFormat` for specifying parameter format - partially.
+- [ ] Support for dynamic action arguments in dynamic model
