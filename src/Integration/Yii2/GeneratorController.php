@@ -45,11 +45,6 @@ class GeneratorController extends Controller
      */
     public $outputFilePattern = '%s.%s';
 
-    /**
-     * @var string|null Global property for Generation process
-     */
-    protected $currentPath;
-
     public function options($actionID)
     {
         return array_merge(parent::options($actionID), [
