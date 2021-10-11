@@ -13,6 +13,7 @@ use OpenApi\Annotations\RequestBody;
 use OpenApi\Annotations\SecurityScheme;
 use OpenApi\Annotations\Server;
 use OpenApi\Annotations\Tag;
+use phpDocumentor\Reflection\DocBlock\Tags\InvalidTag;
 use phpDocumentor\Reflection\DocBlockFactory;
 use ReflectionException;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
@@ -469,5 +470,12 @@ class DefaultGenerator extends ErrorableObject
     public function getClassDescriber(): ClassDescriber
     {
         return $this->classDescriber;
+    }
+
+    public function onInvalidTag(InvalidTag $tag, $location = null)
+    {
+        $this->notice('Tag "@' . $tag->getName() . '"' . (!empty($location) ? ' of "'.$location.'"' : null)
+                      . ' is invalid: '.$tag->getException()->getMessage(),
+         ErrorableObject::NOTICE_ERROR);
     }
 }

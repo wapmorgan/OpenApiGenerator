@@ -1,6 +1,7 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
 
+use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
@@ -23,6 +24,11 @@ class GeneratorController extends Controller
      * @var bool
      */
     public $verbose;
+
+    /**
+     * @var bool
+     */
+    public $trace = false;
 
     /**
      * @var string|null Default output directory
@@ -48,6 +54,7 @@ class GeneratorController extends Controller
     {
         return array_merge(parent::options($actionID), [
             'verbose',
+            'trace',
             'outputDirectory',
             'outputFormat',
             'outputFilePattern',
@@ -60,6 +67,7 @@ class GeneratorController extends Controller
         DefaultGenerator::NOTICE_INFO => [Console::BG_GREY, Console::FG_BLACK],
         DefaultGenerator::NOTICE_WARNING => [Console::FG_RED],
         DefaultGenerator::NOTICE_ERROR => [Console::BG_YELLOW, Console::FG_RED],
+        'trace' => [Console::BG_BLACK, Console::FG_GREY],
     ];
 
     /**
@@ -102,22 +110,6 @@ class GeneratorController extends Controller
     /**
      * @return DefaultGenerator
      */
-    protected function constructGenerator(): DefaultGenerator
-    {
-        $generator = new DefaultGenerator();
-        $generator->setOnNoticeCallback(function ($message, $level) {
-            self::output(
-                ($this->currentPath !== null ? $this->currentPath.': ' : null).$message,
-                $level
-            );
-        });
-        $generator->getClassDescriber()->setClassDescribingOptions(ActiveRecord::class, []);
-        return $generator;
-    }
-
-    /**
-     * @return DefaultGenerator
-     */
     protected function buildGenerator(): DefaultGenerator
     {
         $generator = $this->constructGenerator();
@@ -127,32 +119,83 @@ class GeneratorController extends Controller
     }
 
     /**
+     * @return DefaultGenerator
+     */
+    protected function constructGenerator(): DefaultGenerator
+    {
+        $generator = new DefaultGenerator();
+        $this->setMessagesCallbacks($generator);
+        $generator->getClassDescriber()->setClassDescribingOptions(ActiveRecord::class, []);
+        return $generator;
+    }
+
+    public function setMessagesCallbacks(ErrorableObject $emitter)
+    {
+        $emitter->setOnNoticeCallback([$this, 'onNoticeCallback']);
+        $emitter->setOnTraceCallback([$this, 'onTraceCallback']);
+    }
+
+    public function onNoticeCallback($message, $level)
+    {
+        self::output(
+            ($this->currentPath !== null ? $this->currentPath.': ' : null).$message,
+            $level
+        );
+    }
+
+    public function onTraceCallback($message)
+    {
+        if ($this->trace)
+            self::output(
+                ($this->currentPath !== null ? $this->currentPath.': ' : null).$message, 'trace'
+            );
+    }
+
+    protected $done = 0;
+
+    protected $total = 0;
+
+    /**
+     * @var string|null Global property for Generation process
+     */
+    protected $currentPath;
+
+
+    /**
      * @param DefaultGenerator $generator
      * @return void
      */
     protected function setupGeneratorOutput(DefaultGenerator $generator): void
     {
-        // Progress-bar
-        $done = $total = 0;
-        $this->currentPath = null;
+        $generator->setOnSpecificationStartCallback([$this, 'onSpecificationStartCallback']);
+        $generator->setOnSpecificationEndCallback([$this, 'onSpecificationEndCallback']);
+        $generator->setOnPathStartCallback([$this, 'onPathStartCallback']);
+        $generator->setOnPathEndCallback([$this, 'onPathEndCallback']);
+    }
 
-        $generator->setOnSpecificationStartCallback(function (Specification $spec) use (&$total, &$done) {
-            $done = 0;
-            $total = count($spec->endpoints);
-            Console::startProgress(0, $total, $spec->title);
-        });
-        $generator->setOnPathStartCallback(function (Endpoint $path, Specification $specification) {
-            $this->currentPath = $specification->version.$path->id;
-        });
-        $generator->setOnPathEndCallback(function (Endpoint $path, Specification $specification) use (&$total, &$done) {
-            $this->currentPath = null;
-            $done++;
-            Console::updateProgress($done, $total, $specification->version . ($this->verbose ? $path->id : null));
-        });
-        $generator->setOnSpecificationEndCallback(function (Specification $spec) use (&$total) {
-            $total = 0;
-            Console::endProgress();
-        });
+    public function onSpecificationStartCallback(Specification $spec)
+    {
+        $this->done = 0;
+        $this->total = count($spec->endpoints);
+        Console::startProgress(0, $this->total, $spec->title);
+    }
+
+    public function onSpecificationEndCallback(Specification $spec)
+    {
+        $this->total = 0;
+        Console::endProgress();
+    }
+
+    public function onPathStartCallback(Endpoint $path, Specification $specification)
+    {
+        $this->currentPath = $specification->version.$path->id;
+    }
+
+    public function onPathEndCallback(Endpoint $path, Specification $specification)
+    {
+        $this->currentPath = null;
+        $this->done++;
+        Console::updateProgress($this->done, $this->total, $specification->version . ($this->verbose ? $path->id : null));
     }
 
     /**
@@ -161,6 +204,7 @@ class GeneratorController extends Controller
     protected function buildScraper(): DefaultScraper
     {
         $scraper = new $this->scraper();
+        $this->setMessagesCallbacks($scraper);
         return $scraper;
     }
 

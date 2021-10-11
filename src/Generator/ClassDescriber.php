@@ -75,8 +75,13 @@ class ClassDescriber
             return null;
         }
 
+        $this->generator->trace('Analyzing class '.$class);
+
         if (($redirection = $this->getRedirection($describable_class)) !== null) {
             if (substr($redirection, 0,  1) === '$') {
+                if (strpos($redirection, ' ') !== false)
+                    $redirection = strstr($redirection, ' ', true);
+
                 if (substr($redirection, -2) === '[]') {
                     $is_iterable = true;
                     $redirection = substr($redirection, 1, -2);
@@ -92,13 +97,17 @@ class ClassDescriber
 
                 $properties = $reflection->getDefaultProperties();
 
+                $this->generator->trace('Redirection from '.$describable_class->getName().' to $'.$redirection
+                                        .' ('.$properties[$redirection].($is_iterable ? '[]' : null).')');
+
                 return $this->generator->getTypeDescriber()->generateSchemaForType(
                     $describable_class->getName(),
                     $properties[$redirection].($is_iterable ? '[]' : null), null);
             } elseif (class_exists($redirection)) {
+                $this->generator->trace('Redirection from '.$describable_class->getName().' to '.$redirection);
                 return $this->generator->getTypeDescriber()->generateSchemaForType($describable_class->getName(), $redirection, null);
             } else {
-                $this->generator->notice('Redirection tag in '.$class.' should start with $ or be a class', ErrorableObject::NOTICE_WARNING);
+                $this->generator->notice('Redirection tag in '.$class.' should start with $ or be a class', ErrorableObject::NOTICE_ERROR);
                 return null;
             }
         }
@@ -131,8 +140,13 @@ class ClassDescriber
             return null;
         }
 
+        $this->generator->trace('Analyzing object of class '.$reflection->getParentClass()->getName());
+
         if (($redirection = $this->getRedirection($describable_class)) !== null) {
             if (substr($redirection, 0,  1) === '$') {
+                if (strpos($redirection, ' ') !== false)
+                    $redirection = strstr($redirection, ' ', true);
+
                 if (substr($redirection, -2) === '[]') {
                     $is_iterable = true;
                     $redirection = substr($redirection, 1, -2);
@@ -146,11 +160,15 @@ class ClassDescriber
                     return null;
                 }
 
+                $this->generator->trace('Redirection from '.$describable_class->getName().' to $'.$redirection
+                                        .' ('.var_export($object->{$redirection}, true).')');
+
                 return $this->generator->getTypeDescriber()->generateSchemaForObject($object->{$redirection}, $is_iterable);
             } elseif (class_exists($redirection)) {
+                $this->generator->trace('Redirection from '.$describable_class->getName().' to '.$redirection);
                 return $this->generator->getTypeDescriber()->generateSchemaForType($describable_class->getName(), $redirection, null);
             } else {
-                $this->generator->notice('Redirection tag in '.get_class($object).' should start with $', ErrorableObject::NOTICE_WARNING);
+                $this->generator->notice('Redirection tag in '.get_class($object).' should start with $', ErrorableObject::NOTICE_ERROR);
                 return null;
             }
         }
@@ -273,19 +291,24 @@ class ClassDescriber
     protected function generateAnnotationForObjectProperty(ReflectionProperty $propertyReflection): PropertyAnnotation
     {
         $doc_comment = $propertyReflection->getDocComment();
+        $this->generator->trace('Discovering property '.$propertyReflection->getDeclaringClass()->getName().':'.$propertyReflection->getName());
         if ($doc_comment === false) {
             $this->generator->notice('Property "'.$propertyReflection->getName().'" of "'
                 .$propertyReflection->getDeclaringClass()->getName().'" has no doc-block at all',
-                ErrorableObject::NOTICE_INFO);
+                ErrorableObject::NOTICE_WARNING);
         } else {
             $doc = $this->generator->getDocBlockFactory()->create($doc_comment);
             if ($doc->hasTag('var')) {
                 /** @var Var_ $doc_block */
                 $doc_block = $doc->getTagsByName('var')[0];
+                if ($doc_block instanceof InvalidTag) {
+                    $this->generator->onInvalidTag($doc_block, $propertyReflection->getDeclaringClass()->getName().':'.$propertyReflection->getName());
+                    unset($doc_block);
+                }
             } else {
                 $this->generator->notice('Property "' . $propertyReflection->getName() . '" of "'
                     . $propertyReflection->getDeclaringClass()->getName() . '" has no @var tag',
-                    ErrorableObject::NOTICE_INFO);
+                    ErrorableObject::NOTICE_ERROR);
                 unset($doc);
             }
         }
@@ -374,18 +397,15 @@ class ClassDescriber
                     // listing all properties
                     /** @var PropertyDocBlock $object_field */
                     foreach ($doc->getTagsByName($class_virtual_property) as $object_field) {
-
                         if ($object_field instanceof InvalidTag) {
-                            $this->generator->notice('Tag "' . (string)$object_field . '" of "'
-                                . $class . '" is invalid: '.$object_field->getException()->getMessage(),
-                            ErrorableObject::NOTICE_WARNING);
+                            $this->generator->onInvalidTag($object_field, $describableClass);
                             continue;
                         }
 
                         if (empty((string)$object_field->getType())) {
                             $this->generator->notice('Property "' . $object_field->getVariableName() . '" of "'
-                                . $class . '" has doc-block, but type is not defined. Skipping...',
-                                ErrorableObject::NOTICE_WARNING);
+                                . $class . '" has doc-block, but type is not defined',
+                                ErrorableObject::NOTICE_ERROR);
                             continue;
                         }
 
@@ -405,6 +425,11 @@ class ClassDescriber
                     // listing all enums
                     if (isset($class_virtual_property_config['enum']) && $class_virtual_property_config['enum']) {
                         foreach ($doc->getTagsByName($class_virtual_property . 'Enum') as $object_field_enum) {
+                            if ($object_field_enum instanceof InvalidTag) {
+                                $this->generator->onInvalidTag($object_field_enum, $describableClass);
+                                continue;
+                            }
+
                             $enum_string = $object_field_enum->getDescription() !== null
                                 ? (string)$object_field_enum->getDescription()
                                 : null;
@@ -427,6 +452,11 @@ class ClassDescriber
                     // listing all examples
                     if (isset($class_virtual_property_config['example']) && $class_virtual_property_config['example']) {
                         foreach ($doc->getTagsByName($class_virtual_property.'Example') as $object_field_example) {
+                            if ($object_field_example instanceof InvalidTag) {
+                                $this->generator->onInvalidTag($object_field_example, $describableClass);
+                                continue;
+                            }
+
                             $example_string = $object_field_example->getDescription() !== null
                                 ? (string)$object_field_example->getDescription()
                                 : null;
@@ -515,6 +545,11 @@ class ClassDescriber
         }
 
         $tag = current($tags);
+        if ($tag instanceof InvalidTag) {
+            $this->generator->onInvalidTag($tag, $reflection->getName());
+            return null;
+        }
+
         return (string)$tag->getDescription();
     }
 }

@@ -88,7 +88,8 @@ class TypeDescriber
             $is_iterable_type = true;
         }
 
-        if (in_array(strtolower($typeSpecification), $this->primitiveTypes, true)) {
+        if (in_array(strtolower($typeSpecification), $this->primitiveTypes, true)
+            || in_array(strtolower($typeSpecification), ['true', 'false'], true)) {
             $kindOfType = self::PRIMITIVE_TYPE;
             $schema = $this->generateSchemaForPrimitiveType(strtolower($typeSpecification), $defaultValue, $is_iterable_type);
         } else if (in_array(strtolower($typeSpecification), $this->complexAbstractTypes, true)) {
@@ -273,6 +274,8 @@ class TypeDescriber
                 return 'integer';
 
             case 'bool':
+            case 'true':
+            case 'false':
                 return 'boolean';
         }
 

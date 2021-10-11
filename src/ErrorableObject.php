@@ -20,6 +20,11 @@ class ErrorableObject
         NOTICE_ERROR = 5;
 
     /**
+     * @var callable|null Callback for cases when a trace message was generated
+     */
+    protected $onTraceCallback;
+
+    /**
      * @param callable $callback
      * @return ErrorableObject
      */
@@ -36,6 +41,16 @@ class ErrorableObject
     public function setOnNoticeCallback(?callable $callback): ErrorableObject
     {
         $this->onNoticeCallback = $callback;
+        return $this;
+    }
+
+    /**
+     * @param callable $callback
+     * @return ErrorableObject
+     */
+    public function setOnTraceCallback(?callable $callback): ErrorableObject
+    {
+        $this->onTraceCallback = $callback;
         return $this;
     }
 
@@ -62,6 +77,17 @@ class ErrorableObject
             call_user_func($this->onNoticeCallback, $message, $level);
         } else {
             echo $message . PHP_EOL;
+        }
+    }
+
+    /**
+     * @param string $message
+     * @param int $level
+     */
+    public function trace(string $message)
+    {
+        if ($this->onTraceCallback !== null) {
+            call_user_func($this->onTraceCallback, $message);
         }
     }
 }

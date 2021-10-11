@@ -12,6 +12,7 @@ use OpenApi\Annotations\Response;
 use OpenApi\Annotations\Schema;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tag;
+use phpDocumentor\Reflection\DocBlock\Tags\InvalidTag;
 use phpDocumentor\Reflection\DocBlock\Tags\Link;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
@@ -97,13 +98,27 @@ class PathDescriber
             if (count($link_tags) > 1) {
                 /** @var Link $link_tag */
                 foreach ($link_tags as $link_tag) {
+                    if ($link_tag instanceof InvalidTag) {
+                        $this->generator->onInvalidTag($link_tag, $pathOperation->path);
+                        continue;
+                    }
                     $description[] = $link_tag->getLink() . (!empty($link_tag->getDescription()) ? $link_tag->getDescription() : '');
                 }
             } else {
-                $pathOperation->externalDocs = new ExternalDocumentation([
-                    'url' => $link_tags[0]->getLink(),
-                    'description' => (!empty($link_tags[0]->getDescription()) ? (string)$link_tags[0]->getDescription() : ''),
-                ]);
+                $link_tag = $link_tags[0];
+                if ($link_tag instanceof InvalidTag) {
+                    $this->generator->notice('Tag "' . (string)$link_tag . '" of "'
+                     . $class . '" is invalid: '.$link_tag->getException()->getMessage(),
+                     ErrorableObject::NOTICE_ERROR);
+                } else {
+                    $pathOperation->externalDocs = new ExternalDocumentation([
+                        'url' => $link_tags[0]->getLink(),
+                         'description' => (!empty(
+                         $link_tags[0]->getDescription()
+                         ) ? (string)$link_tags[0]->getDescription(
+                         ) : ''),
+                     ]);
+                }
             }
         }
 
@@ -129,6 +144,15 @@ class PathDescriber
         if ($docBlock !== null && $docBlock->hasTag('return')) {
             /** @var Return_ $return_block */
             $return_block = $docBlock->getTagsByName('return')[0];
+
+            if ($return_block instanceof InvalidTag) {
+                $this->generator->onInvalidTag($return_block,
+                                               $actionReflection->getDeclaringClass()->getName()
+                                               .':'.$actionReflection->getName().'()'
+                );
+                return null;
+            }
+
             $return_string = trim(substr($return_block->render(), 8));
 
             // Поддержка нескольких возвращемых типов
@@ -316,14 +340,24 @@ class PathDescriber
         $doc_block_parameters = [];
         $parameters_enums = $parameters_examples = $parameters_formats = [];
 
+        $location = $actionReflection->getDeclaringClass()->getName().':'.$actionReflection->getName().'()';
+
         if ($docBlock !== null) {
             /** @var Param $action_parameter */
             foreach ($docBlock->getTagsByName('param') as $action_parameter) {
-                $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
+                if ($action_parameter instanceof InvalidTag)
+                    $this->generator->onInvalidTag($action_parameter, $location);
+                else
+                    $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
             }
 
             /** @var Tag $action_parameter_enum */
             foreach ($docBlock->getTagsByName('paramEnum') as $action_parameter_enum) {
+                if ($action_parameter_enum instanceof InvalidTag) {
+                    $this->generator->onInvalidTag($action_parameter_enum, $location);
+                    continue;
+                }
+
                 $enum_string = $action_parameter_enum->getDescription() !== null
                     ? (string)$action_parameter_enum->getDescription()
                     : null;
@@ -338,6 +372,11 @@ class PathDescriber
 
             /** @var Tag $action_parameter_example */
             foreach ($docBlock->getTagsByName('paramExample') as $action_parameter_example) {
+                if ($action_parameter_example instanceof InvalidTag) {
+                    $this->generator->onInvalidTag($action_parameter_example, $location);
+                    continue;
+                }
+
                 $example_string = $action_parameter_example->getDescription() !== null
                     ? (string)$action_parameter_example->getDescription()
                     : null;
@@ -352,6 +391,11 @@ class PathDescriber
 
             /** @var Tag $action_parameter_example */
             foreach ($docBlock->getTagsByName('paramFormat') as $action_parameter_format) {
+                if ($action_parameter_format instanceof InvalidTag) {
+                    $this->generator->onInvalidTag($action_parameter_format, $location);
+                    continue;
+                }
+
                 $format_string = $action_parameter_format->getDescription() !== null
                     ? (string)$action_parameter_format->getDescription()
                     : null;
@@ -465,17 +509,18 @@ class PathDescriber
     {
         $is_nullable_parameter = $is_required_parameter = false;
 
+        $location = $pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName();
+
         if ($docBlockParameter === null) {
-            $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
-                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
-                .'" has no doc-block at all, skipping', ErrorableObject::NOTICE_WARNING);
+            $this->generator->notice('Param "'.$pathParameter->getName().'" of "' . $location
+                                     .'" has no doc-block at all', ErrorableObject::NOTICE_WARNING);
             return null;
         }
 
         if (empty((string)$docBlockParameter->getType())) {
             $this->generator->notice('Param "'.$pathParameter->getName().'" of "'
-                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
-                .'" has doc-block, but type is not defined. Skipping...', ErrorableObject::NOTICE_WARNING);
+                .$location
+                .'" has doc-block, but type is not defined', ErrorableObject::NOTICE_ERROR);
             return null;
         }
 
@@ -568,6 +613,13 @@ class PathDescriber
         if ($docBlock !== null) {
             /** @var Param $action_parameter */
             foreach ($docBlock->getTagsByName('param') as $action_parameter) {
+                if ($action_parameter instanceof InvalidTag) {
+                    $this->generator->onInvalidTag($action_parameter,
+                       $actionReflection->getDeclaringClass()->getName().':'.$actionReflection->getName().'()'
+                    );
+                    continue;
+                }
+
                 $doc_block_parameters[$action_parameter->getVariableName()] = $action_parameter;
             }
         }
@@ -612,17 +664,19 @@ class PathDescriber
     {
         $is_nullable_parameter = $is_required_parameter = false;
 
+        $location = $pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName();
+
         if ($docBlockParameter === null) {
             $this->generator->notice('Body param "'.$pathParameter->getName().'" of "'
-                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
-                .'" has no doc-block at all, skipping', ErrorableObject::NOTICE_WARNING);
+                . $location
+                .'" has no doc-block at all', ErrorableObject::NOTICE_WARNING);
             return null;
         }
 
         if (empty((string)$docBlockParameter->getType())) {
             $this->generator->notice('Body param "'.$pathParameter->getName().'" of "'
-                .$pathParameter->getDeclaringClass()->getName().'::'.$pathParameter->getDeclaringFunction()->getName()
-                .'" has doc-block, but type is not defined. Skipping...', ErrorableObject::NOTICE_WARNING);
+                .$location
+                .'" has doc-block, but type is not defined', ErrorableObject::NOTICE_ERROR);
             return null;
         }
 
