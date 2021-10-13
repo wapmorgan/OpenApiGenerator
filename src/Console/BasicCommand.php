@@ -30,10 +30,10 @@ abstract class BasicCommand extends Command
     {
         $output->getFormatter()->setStyle('notice_success', new OutputFormatterStyle('green', null));
         $output->getFormatter()->setStyle('notice_important', new OutputFormatterStyle('white', 'blue'));
-        $output->getFormatter()->setStyle('notice_info', new OutputFormatterStyle('black', 'gray'));
+        $output->getFormatter()->setStyle('notice_info', new OutputFormatterStyle('black', 'default'));
         $output->getFormatter()->setStyle('notice_warning', new OutputFormatterStyle('red', null));
         $output->getFormatter()->setStyle('notice_error', new OutputFormatterStyle('black', 'red'));
-        $output->getFormatter()->setStyle('trace', new OutputFormatterStyle('gray', '#000'));
+        $output->getFormatter()->setStyle('trace', new OutputFormatterStyle('default', 'black'));
     }
 
     /**
