@@ -27,48 +27,58 @@ PHP from source code based on any framework or written manually, whatever. In la
 instructions for generator.
 
 # How it works
-1. You prepare data (use predefined or write own scraper), that collects:
-   - your API _endpoints_
-   - specification description, servers, tags, authorization schemas, etc.
-2. You pass it to _generator_.
-3. _Generator_ parses them, extracts any useful information (_description, parameters, resulting data, ..._) from callbacks:
-    - Callback parameters (from callback signature or callback php-doc)
-    - Callback information (from php-doc)
-    - Callback result (from php-doc or defined explicit)
+1. You prepare scraper - use or extend predefined scraper. It collects: your API _endpoints_ specification description, servers, tags, authorization schemas, etc.
+2. You configure a _generator_.
+3. _Generator_ does it's work: parses endpoints, extracts useful information:
+    - Endpoints parameters (from callback signature or callback php-doc)
+    - Endpoints information (from php-doc)
+    - Endpoints result (from php-doc or defined explicit)
 4. _Generator_ collects all data and compacts it into OpenApi configurations (that are ready-to-use with Swagger and Swagger-UI).
 
 If your need full process example, go to [How it works](docs/how_it_works.md) file.
 
 ## What data should a scraper provide
 
-You use (or modify) a predefined _scraper_ or create your own _scraper_, which should return a special result with list of your API endpoints , which in most cases is just a callback.
-Also, your scraper should provide tags, security schemes and so on.
+You use (or extend) a predefined _scraper_ or create your own _scraper_ from scratch, which should return a result with list of your API endpoints. Also, your scraper should provide tags, security schemes and so on.
 
 Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
-## Extractable information from code
+## Extractable information about endpoints
 
-- Endpoint summary (first line of php-doc) and description (rest of php-doc).
-- Endpoint parameters:
-    - from php-doc: `@param`
-    - from endpoint signatures: `string $text`
-    Also, there is support for non-usual php-doc modifications:
+- Endpoint summary  and description (first line and rest of php-doc).
+- Endpoint parameters: from php-doc: `@param`,  from function signature: `string $text`.
+    Also, following tags are supported:
     - `@paramEnum`
     - `@paramExample`
     - `@paramFormat`
-- Endpoint result:
-    - declared in php-doc (`@return SendMessageResponse`)
-    - declared in endpoints information by a scraper.
+- Endpoint result declared in php-doc (`@return SendMessageResponse`)
+
+## Console commands
+### Scrape
+Uses your scraper and returns list of endpoints.
+
+Usage: `./vendor/bin/openapi-generator scrape <scraper> [<specification>]`, where `<scraper>` is a class or file with scraper.
+Example: `./vendor/bin/openapi-generator scrape components/openapi/OpenApiScraper.php site`.
+
+## Generate
+Generates openapi-files from scraper and generator.
+
+Usage: `./vendor/bin/openapi-generator generate [-f|--format FORMAT] <scraper> <generator> [<specification> [<output>]]`:
+- `generator` - file or class of Generator
+- `specification` - regex for module
+- `output` - directory for output files
+
+Example: `./vendor/bin/openapi-generator generate components/openapi/OpenApiScraper.php components/openapi/OpenApiGenerator.php`.
 
 # Integrations
 ## Yii2
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\CodeScraper`](src/Integration/Yii2/Yii2CodeScraper.php)
-- A console command - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\GeneratorController`](src/Integration/Yii2/Yii2GeneratorController.php)
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper`](src/Integration/Yii2/Yii2CodeScraper.php)
+- A console command - [`\wapmorgan\OpenApiGenerator\Integration\Yii2GeneratorController`](src/Integration/Yii2/Yii2GeneratorController.php)
 
 ## Slim
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Slim\CodeScraper`](src/Integration/Slim/SlimCodeScraper.php)
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper`](src/Integration/Slim/SlimCodeScraper.php)
 
 # Settings
 DefaultGenerator provides list of settings to tune generator.
@@ -97,5 +107,5 @@ By default, they all are disabled.
 - [x] Support for body parameters (when parameters are complex objects) - partially.
 - [ ] Support for few responses (with different HTTP codes).
 - [ ] Extracting class types into separate components (into openapi components).
-- [ ] Add `@paramFormat` for specifying parameter format - partially.
+- [x] Add `@paramFormat` for specifying parameter format - partially.
 - [ ] Support for dynamic action arguments in dynamic model
