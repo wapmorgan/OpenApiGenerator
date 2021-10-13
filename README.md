@@ -13,12 +13,11 @@ Original idea by [@maxonrock](https://github.com/maxonrock).
 2. [How it works](#how-it-works)
     - [What data should a scraper provide](#what-data-should-a-scraper-provide)
     - [Extractable information from code](#extractable-information-from-code)
-3. [Integrations](#integrations)
-    - [Yii 2](#yii2)
-    - [Slim](#slim)
-4. [Settings](#settings)
-5. [Limitations](#limitations)
-6. [ToDo](#todo)
+3. [Console commands](#console-commands)
+4. [Integrations](#integrations)
+5. [Settings](#settings)
+6. [Limitations](#limitations)
+7. [ToDo](#todo)
 
 # What it does
 
@@ -53,8 +52,8 @@ Detailed information about Scraper result: [in another document](docs/scraper_re
     - `@paramFormat`
 - Endpoint result declared in php-doc (`@return SendMessageResponse`)
 
-## Console commands
-### Scrape
+# Console commands
+## Scrape
 Uses your scraper and returns list of endpoints.
 
 Usage: `./vendor/bin/openapi-generator scrape <scraper> [<specification>]`, where `<scraper>` is a class or file with scraper.
@@ -73,12 +72,12 @@ Example: `./vendor/bin/openapi-generator generate components/openapi/OpenApiScra
 # Integrations
 ## Yii2
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper`](src/Integration/Yii2/Yii2CodeScraper.php)
-- A console command - [`\wapmorgan\OpenApiGenerator\Integration\Yii2GeneratorController`](src/Integration/Yii2/Yii2GeneratorController.php)
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper`](src/Integration/Yii2CodeScraper.php)
+- A console command - [`\wapmorgan\OpenApiGenerator\Integration\Yii2GeneratorController`](src/Integration/Yii2GeneratorController.php)
 
 ## Slim
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper`](src/Integration/Slim/SlimCodeScraper.php)
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper`](src/Integration/SlimCodeScraper.php)
 
 # Settings
 DefaultGenerator provides list of settings to tune generator.
