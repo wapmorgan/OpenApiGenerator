@@ -41,6 +41,7 @@ You use (or extend) a predefined _scraper_ (see Integrations) or create your own
 Available scrapers:
 - `\wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper` - Scraper for app/modules controllers in Yii2-application.
 - `\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper` - Scraper for actions in Slim-application.
+- `\wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper` - Scraper for actions in Laravel-application.
 
 Scraper should returns list of **specifications** (for example, list of api versions) with data in each _specification_:
 - _version_ - unique ID of specification.
@@ -89,6 +90,10 @@ Example: `./vendor/bin/openapi-generator generate components/openapi/OpenApiScra
 ## Slim
 
 - A scraper - [`\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper`](src/Integration/SlimCodeScraper.php)
+
+## Laravel
+
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper`](src/Integration/LaravelCodeScraper.php)
 
 # Settings
 DefaultGenerator provides list of settings to tune generator.
