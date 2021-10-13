@@ -24,9 +24,9 @@ PHP from source code based on any framework or written manually, whatever. In la
 instructions for generator.
 
 # How it works
-1. You prepare scraper - use or extend predefined scraper. It collects: your API _endpoints_ specification description, servers, tags, authorization schemas, etc.
-2. You configure a _generator_.
-3. _Generator_ does it's work: parses endpoints, extracts useful information:
+1. You prepare **Scraper** - use or extend predefined scraper. It collects: your specification description, API _endpoints_, servers, tags, authorization schemas, etc.
+2. You configure a **Generator** - disable parsing of specific classes, enabled/disabled features.
+3. You passes the _Scraper_ to the _Generator_, and it does work: parses endpoints, extracts useful information:
     - Endpoints parameters (from callback signature or callback php-doc)
     - Endpoints information (from php-doc)
     - Endpoints result (from php-doc or defined explicit)
