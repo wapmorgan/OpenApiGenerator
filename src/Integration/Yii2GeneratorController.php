@@ -1,5 +1,5 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
+namespace wapmorgan\OpenApiGenerator\Integration;
 
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
@@ -12,13 +12,16 @@ use yii\console\ExitCode;
 use yii\db\ActiveRecord;
 use yii\helpers\Console;
 
+use function wapmorgan\OpenApiGenerator\Integration\Yii2\count;
+
 /**
  * Generator of OpenApi configuration for API.
  * @package wapmorgan\OpenApiGenerator\Command\yii2
  */
-class GeneratorController extends Controller
+class Yii2GeneratorController extends Controller
 {
     public $scraper = DefaultScraper::class;
+    public $generator = DefaultGenerator::class;
 
     /**
      * @var bool
@@ -118,7 +121,7 @@ class GeneratorController extends Controller
      */
     protected function constructGenerator(): DefaultGenerator
     {
-        $generator = new DefaultGenerator();
+        $generator = new $this->generator();
         $this->setMessagesCallbacks($generator);
         $generator->getClassDescriber()->setClassDescribingOptions(ActiveRecord::class, []);
         return $generator;

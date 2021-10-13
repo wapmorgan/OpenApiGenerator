@@ -63,12 +63,12 @@ Detailed information about Scraper result: [in another document](docs/scraper_re
 # Integrations
 ## Yii2
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\CodeScraper`](src/Integration/Yii2/CodeScraper.php)
-- A console command - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\GeneratorController`](src/Integration/Yii2/GeneratorController.php)
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\CodeScraper`](src/Integration/Yii2/Yii2CodeScraper.php)
+- A console command - [`\wapmorgan\OpenApiGenerator\Integration\Yii2\GeneratorController`](src/Integration/Yii2/Yii2GeneratorController.php)
 
 ## Slim
 
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Slim\CodeScraper`](src/Integration/Slim/CodeScraper.php)
+- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Slim\CodeScraper`](src/Integration/Slim/SlimCodeScraper.php)
 
 # Settings
 DefaultGenerator provides list of settings to tune generator.

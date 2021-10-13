@@ -31,9 +31,11 @@ class ScrapeCommand extends BasicCommand
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->output = $output;
+
         $scraper_type = $input->getArgument('scraper');
 
-        $scraper = $this->createScraper($scraper_type);
+        $scraper = $this->createScraper($scraper_type, $output);
         $scrape_result = $scraper->scrape();
 
         switch (count($scrape_result->specifications)) {

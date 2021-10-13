@@ -1,18 +1,20 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Integration\Yii2;
+namespace wapmorgan\OpenApiGenerator\Integration;
 
 use ReflectionMethod;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Result\SecurityScheme;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Server;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Tag;
 use Yii;
 
-class CodeScraper extends DefaultScraper
+use function wapmorgan\OpenApiGenerator\Integration\Yii2\count;
+
+class Yii2CodeScraper extends DefaultScraper
 {
     public $excludedModules = [];
 
@@ -116,12 +118,12 @@ class CodeScraper extends DefaultScraper
 
                 $module_name = basename($module_dir);
 
-                if ($this->moduleNamePattern !== null && !preg_match($this->moduleNamePattern, $module_name)) {
+                if ($this->specificationPattern !== null && !fnmatch($this->specificationPattern, $module_name)) {
                     $this->notice('Skipping '.$module_name, self::NOTICE_INFO);
                     continue;
                 }
 
-                if (in_array($module_name, $this->excludedModules, true))
+                if ($this->specificationAntiPattern !== false && fnmatch($module_name, $this->specificationPattern, true))
                     continue;
 
                 $directories[] = $module_dir.'/controllers';

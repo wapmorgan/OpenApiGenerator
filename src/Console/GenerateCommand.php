@@ -1,14 +1,16 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Console;
 
-use Symfony\Component\Console\Command\Command;
+use OpenApi\Annotations\Operation;
+use OpenApi\Annotations\Parameter;
+use OpenApi\Annotations\PathItem;
+use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use wapmorgan\OpenApiGenerator\ErrorableObject;
-use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
+use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
+use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 
 class GenerateCommand extends BasicCommand
 {
@@ -22,8 +24,11 @@ class GenerateCommand extends BasicCommand
         $this->setDescription('Generates openapi configurations')
             ->setHelp('This command allows you to generate openapi-files for current application via user-defined scraper.')
             ->addArgument('scraper', InputArgument::REQUIRED, 'The scraper class or file')
+            ->addArgument('generator', InputArgument::REQUIRED, 'The generator class or file')
+            ->addArgument('specification', InputArgument::OPTIONAL, 'Pattern for specifications', '.+')
             ->addArgument('output', InputArgument::OPTIONAL, 'Folder for output files', getcwd())
             ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Format of output: json or yaml', 'yaml')
+            ->addOption('inspect', null, InputOption::VALUE_NEGATABLE, 'Probe run', false)
         ;
     }
 
@@ -35,9 +40,25 @@ class GenerateCommand extends BasicCommand
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        $scraper_type = $input->getArgument('scraper');
-        $scraper = $this->createScraper($scraper_type);
+        $this->setUpStyles($output);
+        $scraper = $this->createScraper($input->getArgument('scraper'), $output);
+        $scraper->specificationPattern = $input->getArgument('specification');
 
+        $generator = $this->createGenerator($input->getArgument('generator'), $output);
+        $result = $generator->generate($scraper);
+
+        $is_inspect_mode = (boolean)$input->getOption('inspect');
+
+        if ($is_inspect_mode)
+            $this->inspect($input, $output, $result);
+        else
+            $this->generate($input, $output, $result);
+
+        return 0;
+    }
+
+    public function generate(InputInterface $input, OutputInterface $output, GeneratorResult $result)
+    {
         $output_dir = rtrim($input->getArgument('output'), '/');
         if (!is_dir($output_dir)) {
             if (is_file($output_dir)) throw new \InvalidArgumentException($output_dir.' is not a folder');
@@ -46,16 +67,6 @@ class GenerateCommand extends BasicCommand
 
         $output_format = $input->getOption('format');
 
-        $generator = new DefaultGenerator();
-//        $generator->setOnErrorCallback(function () use ($output) {
-//            $this->onError($output, string $message, int $level);
-//        });
-
-        $generator->setOnNoticeCallback(function (string $message, int $level) use ($output) {
-            $this->onNotice($output, $message, $level);
-        });
-
-        $result = $generator->generate($scraper);
         foreach ($result->specifications as $specification) {
             $specification_file = $output_dir.'/'.$specification->id.'.'.$output_format;
 
@@ -63,25 +74,58 @@ class GenerateCommand extends BasicCommand
             $specification->specification->saveAs($specification_file);
             $output->writeln('ok');
         }
+    }
 
+    public function inspect(InputInterface $input, OutputInterface $output, GeneratorResult $result)
+    {
+
+        switch (count($result->specifications)) {
+            case 0:
+                $output->writeln('No available specifications');
+                break;
+            case 1:
+                $this->printSpecification($output, null, $result->specifications[0]);
+                break;
+            default:
+                $output->writeln('Total '.count($result->specifications).' specification(s)');
+                foreach ($result->specifications as $specification) {
+                    $this->printSpecification($output, $specification->title.' '.$specification->id, $specification);
+                }
+                break;
+        }
         return 0;
     }
 
-    /**
-     * @param OutputInterface $output
-     * @param string $message
-     * @param int $level
-     */
-    public function onNotice(OutputInterface $output, string $message, int $level)
+    protected function printSpecification(OutputInterface $output, ?string $title, GeneratorResultSpecification $specification)
     {
-        static $tags = [
-            ErrorableObject::NOTICE_SUCCESS => 'info',
-            ErrorableObject::NOTICE_IMPORTANT => 'info',
-            ErrorableObject::NOTICE_INFO => 'comment',
-            ErrorableObject::NOTICE_WARNING => 'error',
-            ErrorableObject::NOTICE_ERROR => 'error',
-        ];
+        if (!empty($title)) {
+            $output->writeln($title);
+        }
 
-        $output->writeln('<'.$tags[$level].'>'.$message.'</>');
+        $table = new Table($output);
+        $table->setHeaders(['path', 'method', 'descripton', 'parameters']);
+
+        /** @var PathItem $path */
+        foreach ($specification->specification->paths as $pathId => $path) {
+            foreach (['get', 'post'] as $method) {
+                if (!isset($path->{$method}) || $path->{$method} === \OpenApi\Annotations\UNDEFINED)
+                    continue;
+
+                /** @var Operation $path_method */
+                $path_method = $path->{$method};
+
+                $table->addRow([
+                                   $path->path,
+                                   $method,
+                                   $path_method->summary !== \OpenApi\Annotations\UNDEFINED
+                                       ? mb_substr($path_method->summary, 0, 10)
+                                       : null,
+                                   implode(', ', array_map(function (Parameter $param) {
+                                       return $param->name;
+                                   }, $path_method->parameters)),
+                               ]);
+            }
+        }
+        $table->render();
     }
 }

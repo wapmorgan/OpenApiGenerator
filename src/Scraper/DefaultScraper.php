@@ -6,6 +6,9 @@ use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 
 abstract class DefaultScraper extends ErrorableObject
 {
+    public $specificationPattern = '.+';
+    public $specificationAntiPattern = false;
+
     /**
      * Should return list of controllers
      * @return Result
