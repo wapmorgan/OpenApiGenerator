@@ -32,7 +32,7 @@ abstract class BasicCommand extends Command
         $output->getFormatter()->setStyle('notice_important', new OutputFormatterStyle('white', 'blue'));
         $output->getFormatter()->setStyle('notice_info', new OutputFormatterStyle('black', 'gray'));
         $output->getFormatter()->setStyle('notice_warning', new OutputFormatterStyle('red', null));
-        $output->getFormatter()->setStyle('notice_error', new OutputFormatterStyle('red', 'yellow'));
+        $output->getFormatter()->setStyle('notice_error', new OutputFormatterStyle('black', 'red'));
         $output->getFormatter()->setStyle('trace', new OutputFormatterStyle('gray', '#000'));
     }
 
@@ -111,11 +111,11 @@ abstract class BasicCommand extends Command
     public function onNoticeCallback(OutputInterface $output, string $message, int $level)
     {
         static $tags = [
-            ErrorableObject::NOTICE_SUCCESS => 'notice_success',
-            ErrorableObject::NOTICE_IMPORTANT => 'notice_important',
-            ErrorableObject::NOTICE_INFO => 'notice_info',
-            ErrorableObject::NOTICE_WARNING => 'notice_warning',
-            ErrorableObject::NOTICE_ERROR => 'notice_error',
+            ErrorableObject::NOTICE_SUCCESS => ['notice_success', OutputInterface::VERBOSITY_NORMAL],
+            ErrorableObject::NOTICE_IMPORTANT => ['notice_important', OutputInterface::VERBOSITY_VERBOSE],
+            ErrorableObject::NOTICE_INFO => ['notice_info', OutputInterface::VERBOSITY_VERY_VERBOSE],
+            ErrorableObject::NOTICE_WARNING => ['notice_warning', OutputInterface::VERBOSITY_NORMAL],
+            ErrorableObject::NOTICE_ERROR => ['notice_error', OutputInterface::VERBOSITY_QUIET],
         ];
 
         if (isset($this->progressBar))
@@ -125,9 +125,9 @@ abstract class BasicCommand extends Command
         $formatter = $this->getHelper('formatter');
         $message = $formatter->formatSection(
             $this->progressPrefix ?? 'scrape',
-            '<'.$tags[$level].'>'.$message.'</>');
+            '<'.$tags[$level][0].'>'.$message.'</>');
 
-        $output->writeln($message);
+        $output->writeln($message, $tags[$level][1]);
 
         if (isset($this->progressBar))
             $this->progressBar->display();

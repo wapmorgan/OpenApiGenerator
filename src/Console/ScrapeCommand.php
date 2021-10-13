@@ -20,6 +20,7 @@ class ScrapeCommand extends BasicCommand
         $this->setDescription('Scrapes configuration and lists all found services')
             ->setHelp('This command allows you to inspect all ready-to-scrape methods in current project.')
             ->addArgument('scraper', InputArgument::REQUIRED, 'The scraper class or file')
+            ->addArgument('specification', InputArgument::OPTIONAL, 'Pattern for specifications', '.+')
         ;
     }
 
@@ -36,6 +37,7 @@ class ScrapeCommand extends BasicCommand
         $scraper_type = $input->getArgument('scraper');
 
         $scraper = $this->createScraper($scraper_type, $output);
+        $scraper->specificationPattern = $input->getArgument('specification');
         $scrape_result = $scraper->scrape();
 
         switch (count($scrape_result->specifications)) {
