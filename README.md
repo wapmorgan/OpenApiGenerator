@@ -5,9 +5,7 @@ It is OpenApi configuration generator that works with origin source code.
 [![Latest Unstable Version](https://poser.pugx.org/wapmorgan/openapi-generator/v/unstable)](https://packagist.org/packages/wapmorgan/openapi-generator)
 [![License](https://poser.pugx.org/wapmorgan/openapi-generator/license)](https://packagist.org/packages/wapmorgan/openapi-generator)
 
-Main purpose of this library is to simplify OpenApi-specification generation for existing API with a lot of methods and especially automatize it to avoid manual changes.
-
-Original idea by [@maxonrock](https://github.com/maxonrock).
+Main purpose of this library is to simplify OpenApi-specification generation for existing API with a lot of methods and especially automatize it to avoid manual changes. Idea by [@maxonrock](https://github.com/maxonrock).
 
 1. [What it does](#what-it-does)
 2. [How it works](#how-it-works)
