@@ -36,7 +36,20 @@ If your need full process example, go to [How it works](docs/how_it_works.md) fi
 
 ## What data should a scraper provide
 
-You use (or extend) a predefined _scraper_ or create your own _scraper_ from scratch, which should return a result with list of your API endpoints. Also, your scraper should provide tags, security schemes and so on.
+You use (or extend) a predefined _scraper_ (see Integrations) or create your own _scraper_ from scratch (extend `DefaultScraper`), which should return a result with list of your API endpoints. Also, your scraper should provide tags, security schemes and so on.
+
+Available scrapers:
+- `\wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper` - Scraper for app/modules controllers in Yii2-application.
+- `\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper` - Scraper for actions in Slim-application.
+
+Scraper should returns list of **specifications** (for example, list of api versions) with data in each _specification_:
+- _version_ - unique ID of specification.
+- _description_ - summary of specification.
+- _externalDocs_ - URL to external docs.
+- _servers_ - list of servers (base urls).
+- _tags_ - list of tags with description and other properties.
+- _securitySchemes_ - list of security schemes (authorization types).
+- _endpoints_ - list of API endpoints.
 
 Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
