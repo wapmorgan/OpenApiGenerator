@@ -28,7 +28,7 @@ class GenerateCommand extends BasicCommand
             ->addArgument('specification', InputArgument::OPTIONAL, 'Pattern for specifications', '.+')
             ->addArgument('output', InputArgument::OPTIONAL, 'Folder for output files', getcwd())
             ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Format of output: json or yaml', 'yaml')
-            ->addOption('inspect', null, InputOption::VALUE_NEGATABLE, 'Probe run', false)
+            ->addOption('inspect', null, defined('InputOption::VALUE_NEGATABLE') ? InputOption::VALUE_NEGATABLE : InputOption::VALUE_OPTIONAL, 'Probe run', false)
         ;
     }
 
