@@ -25,7 +25,7 @@ instructions for generator.
 
 # How it works
 1. You prepare **Scraper** - use or extend predefined scraper. It collects: your specification description, API _endpoints_, servers, tags, authorization schemas, etc.
-2. You configure a **Generator** - disable parsing of specific classes, enabled/disabled features.
+2. You configure a **Generator** - configure or disable parsing of specific classes, enable/disable generator features.
 3. You passes the _Scraper_ to the _Generator_, and it does work: parses endpoints, extracts useful information:
     - Endpoints parameters (from callback signature or callback php-doc)
     - Endpoints information (from php-doc)
@@ -79,7 +79,9 @@ Usage: `./vendor/bin/openapi-generator generate [-f|--format FORMAT] <scraper> <
 - `specification` - regex for module
 - `output` - directory for output files
 
-Example: `./vendor/bin/openapi-generator generate components/openapi/OpenApiScraper.php components/openapi/OpenApiGenerator.php`.
+Example: 
+- `./vendor/bin/openapi-generator generate components/openapi/OpenApiScraper.php components/openapi/OpenApiGenerator.php`.
+- `./vendor/bin/openapi-generator generate wapmorgan\\OpenApiGenerator\\Integration\\LaravelCodeScraper wapmorgan\\OpenApiGenerator\\Generator\\DefaultGenerator`.
 
 # Integrations
 ## Yii2
