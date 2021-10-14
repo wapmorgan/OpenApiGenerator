@@ -9,8 +9,8 @@ Main purpose of this library is to simplify OpenApi-specification generation for
 
 1. [What it does](#what-it-does)
 2. [How it works](#how-it-works)
-    - [What data should a scraper provide](#what-data-should-a-scraper-provide)
-    - [Extractable information from code](#extractable-information-from-code)
+    - [Scraper's goal](#scrapers-goal)
+    - [Endpoint analyzing](#endpoint-analyzing)
 3. [Console commands](#console-commands)
 4. [Integrations](#integrations)
 5. [Settings](#settings)
@@ -32,9 +32,9 @@ instructions for generator.
     - Endpoints result (from php-doc or defined explicit)
 4. _Generator_ collects all data and compacts it into OpenApi configurations (that are ready-to-use with Swagger and Swagger-UI).
 
-If your need full process example, go to [How it works](docs/how_it_works.md) file.
+More detailed process description is in [How it works](docs/how_it_works.md) document.
 
-## What data should a scraper provide
+## Scraper's goal
 
 You use (or extend) a predefined _scraper_ (see Integrations) or create your own _scraper_ from scratch (extend `DefaultScraper`), which should return a result with list of your API endpoints. Also, your scraper should provide tags, security schemes and so on.
 
@@ -54,7 +54,9 @@ Scraper should returns list of **specifications** (for example, list of api vers
 
 Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
-## Extractable information about endpoints
+## Endpoint analyzing
+
+Generator (`\wapmorgan\OpenApiGenerator\Generator\DefaultGenerator`) parses following information about endpoints:
 
 - Endpoint summary  and description (first line and rest of php-doc).
 - Endpoint parameters: from php-doc: `@param`,  from function signature: `string $text`.
