@@ -2,6 +2,9 @@
 namespace wapmorgan\OpenApiGenerator\Scraper;
 
 use wapmorgan\OpenApiGenerator\ErrorableObject;
+use wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper;
+use wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper;
+use wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper;
 use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
 
 abstract class DefaultScraper extends ErrorableObject
@@ -35,5 +38,14 @@ abstract class DefaultScraper extends ErrorableObject
         }
 
         return $defaultValue;
+    }
+
+    public static function getAllDefaultScrapers()
+    {
+        return [
+            'yii2' => Yii2CodeScraper::class,
+            'slim' => SlimCodeScraper::class,
+            'laravel' => LaravelCodeScraper::class,
+        ];
     }
 }

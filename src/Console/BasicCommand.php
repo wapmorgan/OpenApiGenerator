@@ -43,12 +43,15 @@ abstract class BasicCommand extends Command
      */
     protected function createScraper(string $scraperType, OutputInterface $output): DefaultScraper
     {
+        $scrapers = DefaultScraper::getAllDefaultScrapers();
+        if (isset($scrapers[$scraperType]))
+            $scraperType = $scrapers[$scraperType];
+
         if (class_exists($scraperType)) {
             return new $scraperType();
         }
 
-        $file = realpath(getcwd().'/'.$scraperType);
-        if (file_exists($file)) {
+        if (!empty($scraperType) && file_exists($file = realpath(getcwd().'/'.$scraperType))) {
             $classes_before = get_declared_classes();
             require_once $file;
             $new_classes = array_diff(get_declared_classes(), $classes_before);

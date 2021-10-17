@@ -9,8 +9,10 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
 use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
+use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 
 class GenerateCommand extends BasicCommand
 {
@@ -21,14 +23,17 @@ class GenerateCommand extends BasicCommand
 
     public function configure()
     {
-        $this->setDescription('Generates openapi configurations')
+        $scrapers = array_keys(DefaultScraper::getAllDefaultScrapers());
+
+        $this->setDescription('Generates openapi configurations.'.PHP_EOL
+            .'  Default scrapers: '.implode(', ', $scrapers).'.')
             ->setHelp('This command allows you to generate openapi-files for current application via user-defined scraper.')
-            ->addArgument('scraper', InputArgument::REQUIRED, 'The scraper class or file')
-            ->addArgument('generator', InputArgument::REQUIRED, 'The generator class or file')
-            ->addArgument('specification', InputArgument::OPTIONAL, 'Pattern for specifications', '.+')
+            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file')
+            ->addOption('generator', 'g', InputOption::VALUE_REQUIRED, 'The generator class or file', DefaultGenerator::class)
+            ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
             ->addArgument('output', InputArgument::OPTIONAL, 'Folder for output files', getcwd())
             ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Format of output: json or yaml', 'yaml')
-            ->addOption('inspect', null, defined('InputOption::VALUE_NEGATABLE') ? InputOption::VALUE_NEGATABLE : InputOption::VALUE_OPTIONAL, 'Probe run', false)
+            ->addOption('inspect', null, InputOption::VALUE_NONE, 'Probe run')
         ;
     }
 
@@ -41,10 +46,15 @@ class GenerateCommand extends BasicCommand
     public function execute(InputInterface $input, OutputInterface $output)
     {
         $this->setUpStyles($output);
-        $scraper = $this->createScraper($input->getArgument('scraper'), $output);
-        $scraper->specificationPattern = $input->getArgument('specification');
+        $scraper = $input->getOption('scraper');
+        if (empty($scraper)) {
+            throw new \InvalidArgumentException('Set a scraper');
+        }
 
-        $generator = $this->createGenerator($input->getArgument('generator'), $output);
+        $scraper = $this->createScraper($scraper, $output);
+        $scraper->specificationPattern = $input->getOption('specification');
+
+        $generator = $this->createGenerator($input->getOption('generator'), $output);
         $result = $generator->generate($scraper);
 
         $is_inspect_mode = (boolean)$input->getOption('inspect');

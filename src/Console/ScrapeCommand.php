@@ -5,6 +5,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
 
@@ -17,10 +18,13 @@ class ScrapeCommand extends BasicCommand
 
     public function configure()
     {
-        $this->setDescription('Scrapes configuration and lists all found services')
+        $scrapers = array_keys(DefaultScraper::getAllDefaultScrapers());
+
+        $this->setDescription('Scrapes configuration and lists all found services.'.PHP_EOL
+              .'  Default scrapers: '.implode(', ', $scrapers).'.')
             ->setHelp('This command allows you to inspect all ready-to-scrape methods in current project.')
-            ->addArgument('scraper', InputArgument::REQUIRED, 'The scraper class or file')
-            ->addArgument('specification', InputArgument::OPTIONAL, 'Pattern for specifications', '.+')
+            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file')
+            ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
         ;
     }
 
@@ -34,10 +38,13 @@ class ScrapeCommand extends BasicCommand
     {
         $this->output = $output;
 
-        $scraper_type = $input->getArgument('scraper');
+        $scraper = $input->getOption('scraper');
+        if (empty($scraper)) {
+            throw new \InvalidArgumentException('Set a scraper');
+        }
 
-        $scraper = $this->createScraper($scraper_type, $output);
-        $scraper->specificationPattern = $input->getArgument('specification');
+        $scraper = $this->createScraper($scraper, $output);
+        $scraper->specificationPattern = $input->getOption('specification');
         $scrape_result = $scraper->scrape();
 
         switch (count($scrape_result->specifications)) {
