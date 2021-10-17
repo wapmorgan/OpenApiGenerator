@@ -75,7 +75,7 @@ class LaravelCodeScraper extends DefaultScraper
             $endpoint->httpMethod = strtolower(current($route->methods()));
 
             $callable = $route->action['controller'];
-            if (strpos($callable, '&') && (list($controller, $action) = explode('@', $callable))
+            if (strpos($callable, '@') && (list($controller, $action) = explode('@', $callable))
                 && class_exists($controller) && is_a($controller, \Illuminate\Routing\Controller::class, true)) {
                 $endpoint->callback = [$controller, $action];
             }
@@ -85,8 +85,7 @@ class LaravelCodeScraper extends DefaultScraper
             }
 
             $endpoint->resultWrapper = $path_wrapper;
-            $endpoint->result = 'null';
-
+//            $endpoint->result = 'null';
             $result->specifications[0]->endpoints[] = $endpoint;
         }
 
