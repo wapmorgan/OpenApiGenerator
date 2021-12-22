@@ -3,14 +3,14 @@ namespace wapmorgan\OpenApiGenerator\Integration;
 
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Application;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
 use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Server;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Result;
+use wapmorgan\OpenApiGenerator\Scraper\Server;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
-class LaravelCodeScraper extends DefaultScraper
+class LaravelCodeScraper extends ScraperSkeleton
 {
     /**
      * @return Application

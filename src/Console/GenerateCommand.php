@@ -10,9 +10,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
-use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
-use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
+use wapmorgan\OpenApiGenerator\Generator\GeneratorResultSpecification;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
 class GenerateCommand extends BasicCommand
 {
@@ -23,7 +22,7 @@ class GenerateCommand extends BasicCommand
 
     public function configure()
     {
-        $scrapers = array_keys(DefaultScraper::getAllDefaultScrapers());
+        $scrapers = array_keys(ScraperSkeleton::getAllDefaultScrapers());
 
         $this->setDescription('Generates openapi configurations.'.PHP_EOL
             .'  Default scrapers: '.implode(', ', $scrapers).'.')
@@ -67,7 +66,7 @@ class GenerateCommand extends BasicCommand
         return 0;
     }
 
-    public function generate(InputInterface $input, OutputInterface $output, GeneratorResult $result)
+    public function generate(InputInterface $input, OutputInterface $output, array $result)
     {
         $output_dir = rtrim($input->getArgument('output'), '/');
         if (!is_dir($output_dir)) {
@@ -77,7 +76,7 @@ class GenerateCommand extends BasicCommand
 
         $output_format = $input->getOption('format');
 
-        foreach ($result->specifications as $specification) {
+        foreach ($result as $specification) {
             $specification_file = $output_dir.'/'.$specification->id.'.'.$output_format;
 
             $output->write('Writing '.$specification->id.' to '.$specification_file.' ... ');
@@ -86,19 +85,19 @@ class GenerateCommand extends BasicCommand
         }
     }
 
-    public function inspect(InputInterface $input, OutputInterface $output, GeneratorResult $result)
+    public function inspect(InputInterface $input, OutputInterface $output, array $result)
     {
 
-        switch (count($result->specifications)) {
+        switch (count($result)) {
             case 0:
                 $output->writeln('No available specifications');
                 break;
             case 1:
-                $this->printSpecification($output, null, $result->specifications[0]);
+                $this->printSpecification($output, null, $result[0]);
                 break;
             default:
-                $output->writeln('Total '.count($result->specifications).' specification(s)');
-                foreach ($result->specifications as $specification) {
+                $output->writeln('Total '.count($result).' specification(s)');
+                foreach ($result as $specification) {
                     $this->printSpecification($output, $specification->title.' '.$specification->id, $specification);
                 }
                 break;

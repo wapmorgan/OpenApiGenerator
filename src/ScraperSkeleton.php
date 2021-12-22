@@ -1,20 +1,19 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Scraper;
+namespace wapmorgan\OpenApiGenerator;
 
-use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
+use wapmorgan\OpenApiGenerator\Scraper\Result;
 
-abstract class DefaultScraper extends ErrorableObject
+abstract class ScraperSkeleton extends ErrorableObject
 {
     public $specificationPattern = '.+';
     public $specificationAntiPattern = false;
 
     /**
      * Should return list of controllers
-     * @return Result
+     * @return \wapmorgan\OpenApiGenerator\Scraper\Result
      */
     abstract public function scrape(): Result;
 

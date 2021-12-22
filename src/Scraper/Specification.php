@@ -1,7 +1,8 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Scraper\Result;
+namespace wapmorgan\OpenApiGenerator\Scraper;
 
 use wapmorgan\OpenApiGenerator\InitableObject;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\ApiKeySecurityScheme;
 
 class Specification extends InitableObject
 {
@@ -36,7 +37,7 @@ class Specification extends InitableObject
     public $servers = [];
 
     /**
-     * @var SecurityScheme[] List of security schemes
+     * @var ApiKeySecurityScheme[] List of security schemes
      */
     public $securitySchemes = [];
 

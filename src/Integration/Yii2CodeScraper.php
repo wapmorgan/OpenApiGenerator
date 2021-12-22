@@ -3,18 +3,16 @@ namespace wapmorgan\OpenApiGenerator\Integration;
 
 use ReflectionMethod;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\SecurityScheme;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Server;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Tag;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\ApiKeySecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\Server;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Tag;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 use Yii;
 
-use function wapmorgan\OpenApiGenerator\Integration\Yii2\count;
-
-class Yii2CodeScraper extends DefaultScraper
+class Yii2CodeScraper extends ScraperSkeleton
 {
     public $excludedModules = [];
 
@@ -264,7 +262,7 @@ class Yii2CodeScraper extends DefaultScraper
         if (isset($this->securitySchemes[$authScheme])) {
             $scheme = $this->securitySchemes[$authScheme];
             $scheme['id'] = $authScheme;
-            $specification->securitySchemes[] = new SecurityScheme($scheme);
+            $specification->securitySchemes[] = new ApiKeySecurityScheme($scheme);
             return true;
         }
 

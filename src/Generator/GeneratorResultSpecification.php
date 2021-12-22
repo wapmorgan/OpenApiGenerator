@@ -1,5 +1,5 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Generator\Result;
+namespace wapmorgan\OpenApiGenerator\Generator;
 
 use OpenApi\Annotations\OpenApi;
 use wapmorgan\OpenApiGenerator\InitableObject;

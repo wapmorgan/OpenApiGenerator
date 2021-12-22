@@ -5,11 +5,9 @@ use Exception;
 use OpenApi\Annotations\Components;
 use OpenApi\Annotations\ExternalDocumentation;
 use OpenApi\Annotations\Info;
-use OpenApi\Annotations\MediaType;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\PathItem;
-use OpenApi\Annotations\RequestBody;
 use OpenApi\Annotations\SecurityScheme;
 use OpenApi\Annotations\Server;
 use OpenApi\Annotations\Tag;
@@ -17,13 +15,14 @@ use phpDocumentor\Reflection\DocBlock\Tags\InvalidTag;
 use phpDocumentor\Reflection\DocBlockFactory;
 use ReflectionException;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
-use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResult;
-use wapmorgan\OpenApiGenerator\Generator\Result\GeneratorResultSpecification;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\ApiKeySecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\HttpSecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\OAuth2SecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\OpenIdConnectSecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
 class DefaultGenerator extends ErrorableObject
 {
@@ -121,20 +120,20 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param \wapmorgan\OpenApiGenerator\Scraper\DefaultScraper $scraper
-     * @return GeneratorResult
+     * @param \wapmorgan\OpenApiGenerator\ScraperSkeleton $scraper
+     * @return GeneratorResultSpecification[]
      * @throws \ReflectionException
      */
-    public function generate(DefaultScraper $scraper): GeneratorResult
+    public function generate(ScraperSkeleton $scraper): array
     {
         $scrape_result = $scraper->scrape();
 
         $this->call($this->onStartCallback, [$scrape_result]);
 
-        $result = new GeneratorResult();
+        $result = [];
 
         foreach ($scrape_result->specifications as $specification) {
-            $result->specifications[] = new GeneratorResultSpecification([
+            $result[] = new GeneratorResultSpecification([
                 'id' => $specification->version,
                 'title' => $specification->description,
                 'specification' => $this->generateSpecification($specification),
@@ -275,7 +274,7 @@ class DefaultGenerator extends ErrorableObject
     }
 
     /**
-     * @param Specification $specification
+     * @param \wapmorgan\OpenApiGenerator\Scraper\Specification $specification
      * @return OpenApi
      * @throws ReflectionException
      */
@@ -313,20 +312,51 @@ class DefaultGenerator extends ErrorableObject
                 'description' => $tag->description,
                 'externalDocs' => ($tag->externalDocs !== null
                     ? new ExternalDocumentation(['url' => $tag->externalDocs])
-                    : null),
+                    : \OpenApi\Generator::UNDEFINED),
             ]);
         }
 
         $openapi->components = new Components([]);
         $openapi->components->securitySchemes = [];
         foreach ($specification->securitySchemes as $securityScheme) {
-            $openapi->components->securitySchemes[] = new SecurityScheme([
-                'securityScheme' => $securityScheme->id,
-                'type' => $securityScheme->type,
-                'description' => $securityScheme->description,
-                'name' => $securityScheme->name,
-                'in' => $securityScheme->in,
-            ]);
+            switch (get_class($securityScheme)) {
+                case ApiKeySecurityScheme::class:
+                    $openapi->components->securitySchemes[] = new SecurityScheme([
+                         'securityScheme' => $securityScheme->id,
+                         'type' => $securityScheme->type,
+                         'description' => $securityScheme->description,
+                         'name' => $securityScheme->name,
+                         'in' => $securityScheme->in,
+                     ]);
+                    break;
+
+                case HttpSecurityScheme::class:
+                    $openapi->components->securitySchemes[] = new SecurityScheme([
+                         'securityScheme' => $securityScheme->id,
+                         'type' => $securityScheme->type,
+                         'scheme' => $securityScheme->scheme,
+                         'bearerFormat' => $securityScheme->bearerFormat !== null
+                             ? $securityScheme->bearerFormat
+                             : \OpenApi\Generator::UNDEFINED,
+                     ]);
+                    break;
+
+                case OAuth2SecurityScheme::class:
+                    $openapi->components->securitySchemes[] = new SecurityScheme([
+                         'securityScheme' => $securityScheme->id,
+                         'description' => $securityScheme->description,
+                         'flows' => $securityScheme->flows,
+                     ]);
+                    break;
+
+                case OpenIdConnectSecurityScheme::class:
+                    $openapi->components->securitySchemes[] = new SecurityScheme([
+                         'securityScheme' => $securityScheme->id,
+                         'openIdConnectUrl' => $securityScheme->openIdConnectUrl,
+                     ]);
+                    break;
+            }
+
         }
 
         $openapi->paths = [];

@@ -6,12 +6,11 @@ use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Helper\FormatterHelper;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
-use Viber\Output;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
 abstract class BasicCommand extends Command
 {
@@ -39,11 +38,11 @@ abstract class BasicCommand extends Command
     /**
      * @param string $scraperType
      * @param OutputInterface $output
-     * @return DefaultScraper
+     * @return ScraperSkeleton
      */
-    protected function createScraper(string $scraperType, OutputInterface $output): DefaultScraper
+    protected function createScraper(string $scraperType, OutputInterface $output): ScraperSkeleton
     {
-        $scrapers = DefaultScraper::getAllDefaultScrapers();
+        $scrapers = ScraperSkeleton::getAllDefaultScrapers();
         if (isset($scrapers[$scraperType]))
             $scraperType = $scrapers[$scraperType];
 
@@ -56,7 +55,7 @@ abstract class BasicCommand extends Command
             require_once $file;
             $new_classes = array_diff(get_declared_classes(), $classes_before);
             foreach ($new_classes as $new_class) {
-                if (is_subclass_of($new_class, DefaultScraper::class)) {
+                if (is_subclass_of($new_class, ScraperSkeleton::class)) {
                     return $this->setMessagesCallbacks(new $new_class, $output);
                 }
             }

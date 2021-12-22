@@ -1,8 +1,7 @@
 <?php
-namespace wapmorgan\OpenApiGenerator\Scraper\Result;
+namespace wapmorgan\OpenApiGenerator\Scraper;
 
 use wapmorgan\OpenApiGenerator\InitableObject;
-use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
 
 class Endpoint extends InitableObject
 {

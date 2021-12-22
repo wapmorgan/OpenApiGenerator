@@ -3,9 +3,9 @@ namespace wapmorgan\OpenApiGenerator\Integration;
 
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Generator\DefaultGenerator;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
@@ -20,7 +20,7 @@ use function wapmorgan\OpenApiGenerator\Integration\Yii2\count;
  */
 class Yii2GeneratorController extends Controller
 {
-    public $scraper = DefaultScraper::class;
+    public $scraper = ScraperSkeleton::class;
     public $generator = DefaultGenerator::class;
 
     /**
@@ -197,9 +197,9 @@ class Yii2GeneratorController extends Controller
     }
 
     /**
-     * @return DefaultScraper
+     * @return \wapmorgan\OpenApiGenerator\ScraperSkeleton
      */
-    protected function buildScraper(): DefaultScraper
+    protected function buildScraper(): ScraperSkeleton
     {
         $scraper = new $this->scraper();
         $this->setMessagesCallbacks($scraper);

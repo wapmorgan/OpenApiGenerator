@@ -1,13 +1,12 @@
 <?php
 namespace wapmorgan\OpenApiGenerator\Console;
 
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
 class ScrapeCommand extends BasicCommand
 {
@@ -18,7 +17,7 @@ class ScrapeCommand extends BasicCommand
 
     public function configure()
     {
-        $scrapers = array_keys(DefaultScraper::getAllDefaultScrapers());
+        $scrapers = array_keys(ScraperSkeleton::getAllDefaultScrapers());
 
         $this->setDescription('Scrapes configuration and lists all found services.'.PHP_EOL
               .'  Default scrapers: '.implode(', ', $scrapers).'.')
@@ -64,19 +63,27 @@ class ScrapeCommand extends BasicCommand
         return 0;
     }
 
+    /**
+     * @param OutputInterface $output
+     * @param string|null $title
+     * @param Endpoint[] $endpoints
+     * @return void
+     * @throws \JsonException
+     */
     protected function printSpecification(OutputInterface $output, ?string $title, array $endpoints)
     {
         if (!empty($title)) {
             $output->writeln($title);
         }
         $table = new Table($output);
-        $table->setHeaders(['method', 'service', 'callable', 'tags']);
+        $table->setHeaders(['service', 'security', 'callable', 'result']);
         foreach ($endpoints as $endpoint) {
             $table->addRow([
-                $endpoint->httpMethod,
-                $endpoint->id,
-                json_encode($endpoint->callback, JSON_THROW_ON_ERROR),
-                implode(', ', $endpoint->tags)
+                $endpoint->httpMethod.' '.$endpoint->id,
+                implode(', ', $endpoint->securitySchemes),
+                implode('::', $endpoint->callback),
+                is_object($endpoint->result) ? 'o:'.get_class($endpoint->result) :
+                    var_export($endpoint->result, true),
             ]);
         }
         $table->render();

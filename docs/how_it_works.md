@@ -65,12 +65,12 @@ class DefaultController {
 1. Create **a scraper**:
 
 ```php
-use wapmorgan\OpenApiGenerator\Scraper\DefaultScraper;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Result;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\Result\Specification;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\Result;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
+use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
-class OpenApiScraper extends DefaultScraper {
+class OpenApiScraper extends ScraperSkeleton {
     public function scrape(): Result
     {
         $result = new Result([
@@ -111,7 +111,7 @@ class OpenApiScraper extends DefaultScraper {
 $scraper = new OpenApiScraper();
 $generator = new \wapmorgan\OpenApiGenerator\Generator\DefaultGenerator();
 $result = $generator->generate($scraper);
-file_put_contents('main.yaml', $result->specifications[0]->specification->toYaml());
+file_put_contents('main.yaml', $result[0]->specification->toYaml());
 ```
 
 In `main.yaml` will be saved OpenApi-3.0 specification like this:
