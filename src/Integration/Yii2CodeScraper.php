@@ -17,6 +17,8 @@ class Yii2CodeScraper extends ScraperSkeleton
     public $scrapeApplication = true;
     public $scanControllerInlineActions = true;
     public $scanControllerExternalActions = true;
+    /** @var array<string>string[] Pairs of string-string to be replaced from module folder name and module path in URL */
+    public $replacesForModulePath = [];
 
     public $controllerInModuleClassPattern =
         '~^app\\\\modules\\\\(?<moduleId>[a-z0-9_]+)\\\\controllers\\\\(?<controller>[a-z0-9_]+)Controller$~i';
@@ -39,12 +41,10 @@ class Yii2CodeScraper extends ScraperSkeleton
         $this->notice('Retrieved '
                       . count(array_keys($controllers))
                       . ' module(s) with ' . $total_actions . ' action(s)', self::NOTICE_IMPORTANT);
-
         ksort($controllers, SORT_NATURAL);
 
-        $result = [];
-
         $default_wrapper = $this->getDefaultResponseWrapper();
+        $result = [];
 
         foreach ($controllers as $module_id => $module_controllers) {
             $module_class = $this->getModuleClass($module_id);
@@ -116,8 +116,8 @@ class Yii2CodeScraper extends ScraperSkeleton
                             }
                         }
 
-                        // check for @endpoint tag
-                        if (!empty($action_endpoint = $this->getDocParameter($action_doc, 'endpoint', ''))) {
+                        // check for @alias tag
+                        if (!empty($action_endpoint = $this->getDocParameter($action_doc, 'alias', ''))) {
                             $path->id = $action_endpoint;
                         }
 
@@ -144,7 +144,7 @@ class Yii2CodeScraper extends ScraperSkeleton
      * @return array
      * @throws \ReflectionException
      */
-    public function getActionsList(array $directories)
+    public function getActionsList(array $directories): array
     {
         $controllers_list = [];
 
@@ -157,7 +157,7 @@ class Yii2CodeScraper extends ScraperSkeleton
 
                 foreach ($added_classes as $added_class) {
                     if (preg_match($this->controllerInModuleClassPattern, $added_class, $matches)) {
-                        $module_id = str_replace('_', '.', $matches['moduleId']);
+                        $module_id = strtr($matches['moduleId'], $this->replacesForModulePath);
                         if (!$this->checkModule($module_id)) {
                             $this->notice('Skipping '.$module_id.' because of check',
                                           self::NOTICE_INFO);
@@ -266,7 +266,7 @@ class Yii2CodeScraper extends ScraperSkeleton
      * @return array
      * @throws \ReflectionException
      */
-    protected function collectActions(string $rootDirectory)
+    protected function collectActions(string $rootDirectory): array
     {
         $controller_directories = [];
 
@@ -286,7 +286,7 @@ class Yii2CodeScraper extends ScraperSkeleton
      * @param array $controllerDirectories
      * @return void
      */
-    protected function appendApplicationControllers(string $rootDirectory, array &$controllerDirectories)
+    protected function appendApplicationControllers(string $rootDirectory, array &$controllerDirectories): void
     {
         if (is_dir($controllers_dir = $rootDirectory . '/controllers')) {
             $controllerDirectories[] = $controllers_dir;
@@ -298,7 +298,7 @@ class Yii2CodeScraper extends ScraperSkeleton
      * @param array $controllerDirectories
      * @return void
      */
-    protected function appendModulesControllers(string $rootDirectory, array &$controllerDirectories)
+    protected function appendModulesControllers(string $rootDirectory, array &$controllerDirectories): void
     {
         if (is_dir($modules_dir = $rootDirectory . '/modules')) {
             foreach (glob($modules_dir . '/*', GLOB_ONLYDIR) as $module_dir) {
@@ -408,7 +408,7 @@ class Yii2CodeScraper extends ScraperSkeleton
      */
     protected function getModuleClass(string $moduleId): ?string
     {
-        $moduleId = str_replace('.', '_', $moduleId);
+        $moduleId = strtr($moduleId, array_flip($this->replacesForModulePath));
         $namespace_prefix = '\\app\\modules\\';
         $class_name = $moduleId;
         if (substr($class_name, 0, 1) !== 'v') {
