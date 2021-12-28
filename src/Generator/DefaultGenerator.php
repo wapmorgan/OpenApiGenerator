@@ -132,7 +132,7 @@ class DefaultGenerator extends ErrorableObject
 
         $result = [];
 
-        foreach ($scrape_result->specifications as $specification) {
+        foreach ($scrape_result as $specification) {
             $result[] = new GeneratorResultSpecification([
                 'id' => $specification->version,
                 'title' => $specification->description,

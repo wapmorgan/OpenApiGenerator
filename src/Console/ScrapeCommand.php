@@ -46,15 +46,15 @@ class ScrapeCommand extends BasicCommand
         $scraper->specificationPattern = $input->getOption('specification');
         $scrape_result = $scraper->scrape();
 
-        switch (count($scrape_result->specifications)) {
+        switch (count($scrape_result)) {
             case 0:
                 $output->writeln('No available specifications');
                 break;
             case 1:
-                $this->printSpecification($output, null, $scrape_result->specifications[0]->endpoints);
+                $this->printSpecification($output, null, $scrape_result[0]->endpoints);
                 break;
             default:
-                foreach ($scrape_result->specifications as $specification) {
+                foreach ($scrape_result as $specification) {
                     $this->printSpecification($output, $specification->title.' '.$specification->version, $specification->endpoints);
                 }
                 break;

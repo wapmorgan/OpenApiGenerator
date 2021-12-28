@@ -67,8 +67,13 @@ class TypeDescriber
         $is_iterable_type = false;
 
         // Does not make sense to generate empty @OA\Schema
-        if ($typeSpecification === null) {
+        if ($typeSpecification === null || $typeSpecification === 'void') {
             return null;
+        }
+
+        // case when bad type - only 'null'. Treat as like 'string|null'
+        if ($typeSpecification === 'null') {
+            $typeSpecification = 'string|null';
         }
 
         // multiple types - generate Schema for every type

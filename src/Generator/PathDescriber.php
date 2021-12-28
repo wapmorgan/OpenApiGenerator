@@ -2,7 +2,6 @@
 namespace wapmorgan\OpenApiGenerator\Generator;
 
 use OpenApi\Annotations\ExternalDocumentation;
-use OpenApi\Annotations\Items;
 use OpenApi\Annotations\MediaType;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Parameter;
@@ -21,7 +20,7 @@ use ReflectionMethod;
 use ReflectionParameter;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
 use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
-use yii\helpers\Console;
+
 use const OpenApi\UNDEFINED;
 
 class PathDescriber
@@ -157,8 +156,10 @@ class PathDescriber
 
             // Поддержка нескольких возвращемых типов
             foreach (explode('|', $return_string) as $return_type) {
-                if ($return_type === 'null') continue;
-                $responses_schemas[] = $this->generateSchemaForPathResultBlock($declaring_class, $return_type, $pathResultWrapper);
+                if ($return_type === 'null'
+                    || ($responses_schema = $this->generateSchemaForPathResultBlock($declaring_class, $return_type, $pathResultWrapper)) === null)
+                    continue;
+                $responses_schemas[] = $responses_schema;
             }
             return $responses_schemas;
         }
@@ -184,8 +185,10 @@ class PathDescriber
         if (is_string($type)) {
             // Поддержка нескольких возвращемых типов
             foreach (explode('|', $type) as $return_type) {
-                if ($return_type === 'null') continue;
-                $responses_schemas[] = $this->generateSchemaForPathResultBlock($declaring_class, $return_type, $pathResultWrapper);
+                if ($return_type === 'null'
+                    || ($responses_schema = $this->generateSchemaForPathResultBlock($declaring_class, $return_type, $pathResultWrapper)) === null)
+                    continue;
+                $responses_schemas[] = $responses_schema;
             }
             return $responses_schemas;
         } else if (is_object($type)) {
@@ -262,9 +265,9 @@ class PathDescriber
         string $declaringClass,
         string $returnBlock,
         ?PathResultWrapper $pathResultWrapper = null
-    ): Schema {
+    ): ?Schema {
         $schema = $this->generateSchemaForReturnBlock($declaringClass, $returnBlock);
-        if ($pathResultWrapper !== null) {
+        if ($schema !== null && $pathResultWrapper !== null) {
             $schema = $pathResultWrapper->wrapResultInSchema($schema);
         }
         return $schema;
@@ -298,7 +301,7 @@ class PathDescriber
     protected function generateSchemaForReturnBlock(
         string $declaringClass,
         string $returnBlock
-    ): Schema {
+    ): ?Schema {
         $result_type_description = null;
         $result_spec = ltrim($returnBlock, '\\');
         if (strpos($result_spec, ' ') !== false) {
@@ -306,6 +309,10 @@ class PathDescriber
         }
 
         $schema = $this->generator->getTypeDescriber()->generateSchemaForType($declaringClass, $result_spec, null);
+        if ($schema === null) {
+            return null;
+        }
+
         if (!empty($result_type_description)) {
             if ($schema->description === UNDEFINED)
                 $schema->description = '';
@@ -604,6 +611,7 @@ class PathDescriber
      * @param DocBlock|null $docBlock
      * @param ReflectionMethod $actionReflection
      * @return null
+     * @throws ReflectionException
      */
     protected function generateSchemaForRequestBody(?DocBlock $docBlock, ReflectionMethod $actionReflection): ?Schema
     {
@@ -627,6 +635,7 @@ class PathDescriber
         $schema = new Schema([
             'type' => 'object',
             'properties' => [],
+            'required' => [],
         ]);
 
         // Generation @OA\Parameter's
@@ -643,13 +652,21 @@ class PathDescriber
 
                 $schema->properties[$parameter->getName()] = $this->generateSchemaForBodyParameter(
                     $parameter,
-                    $doc_block_parameters[$parameter->getName()] ?? null
+                    $doc_block_parameters[$parameter->getName()] ?? null,
+                    $isRequired
                 );
+
+                if ($isRequired) {
+                    $schema->required[] = $parameter->getName();
+                }
             }
         }
 
         if (empty($schema->properties))
             return null;
+
+        if (empty($schema->required))
+            $schema->required = \OpenApi\Generator::UNDEFINED;
 
         return $schema;
     }
@@ -657,10 +674,15 @@ class PathDescriber
     /**
      * @param ReflectionParameter $pathParameter
      * @param Param|null $docBlockParameter
+     * @param bool $isRequired
      * @return Property|null
      * @throws ReflectionException
      */
-    protected function generateSchemaForBodyParameter(ReflectionParameter $pathParameter, ?Param $docBlockParameter): ?Property
+    protected function generateSchemaForBodyParameter(
+        ReflectionParameter $pathParameter,
+        ?Param $docBlockParameter,
+        &$isRequired = false
+    ): ?Property
     {
         $is_nullable_parameter = $is_required_parameter = false;
 
@@ -713,8 +735,10 @@ class PathDescriber
         $schema->property = $pathParameter->getName();
         $schema->description = $description ?? null;
 
-        if ($is_required_parameter && !$is_nullable_parameter)
-            $schema->required = true;
+        if ($is_required_parameter && !$is_nullable_parameter) {
+//            $schema->required = true;
+            $isRequired = true;
+        }
 
         return $schema;
     }

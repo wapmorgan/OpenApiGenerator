@@ -5,17 +5,78 @@ use wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper;
 use wapmorgan\OpenApiGenerator\Scraper\Result;
+use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\ApiKeySecurityScheme;
+use wapmorgan\OpenApiGenerator\Scraper\Specification;
 
 abstract class ScraperSkeleton extends ErrorableObject
 {
     public $specificationPattern = '.+';
     public $specificationAntiPattern = false;
 
+    public $specificationTitle = 'API';
+    public $specificationDescription = 'API version %s';
+
+    public $servers = [
+        'http://localhost:8080/' => 'Local server',
+    ];
+
+    public $defaultSecurityScheme = [];
+    public $_securitySchemesCached;
+
+    /**
+     * @return ApiKeySecurityScheme[]
+     */
+    public function getAllSecuritySchemes()
+    {
+        return [
+            'defaultAuth' => new ApiKeySecurityScheme([
+                'type' => 'apiKey',
+                'in'=> 'query',
+                'name' => 'session_id',
+                'description' => 'ID сессии',
+            ]),
+        ];
+    }
+
+
+
+    /**
+     * @param Specification $specification
+     * @param string $authScheme
+     * @return bool
+     */
+    protected function ensureSecuritySchemeAdded(Specification $specification, string $authScheme): bool
+    {
+        if ($this->_securitySchemesCached === null) {
+            $this->_securitySchemesCached = $this->getAllSecuritySchemes();
+        }
+
+        foreach ($specification->securitySchemes as $securityScheme) {
+            if ($securityScheme->id === $authScheme) {
+                return true;
+            }
+        }
+
+        if (isset($this->_securitySchemesCached[$authScheme])) {
+            $scheme = $this->_securitySchemesCached[$authScheme];
+            $scheme->id = $authScheme;
+            $specification->securitySchemes[] = $scheme;
+            $this->notice(
+                'Added auth schema "' . $authScheme . '" to specification "' . $specification->version . '"',
+                self::NOTICE_INFO
+            );
+            return true;
+        }
+
+        $this->notice('Auth schema ' . $authScheme . ' is not defined', self::NOTICE_ERROR);
+        return false;
+    }
+
     /**
      * Should return list of controllers
-     * @return \wapmorgan\OpenApiGenerator\Scraper\Result
+     * @return array
      */
-    abstract public function scrape(): Result;
+    abstract public function scrape(): array;
 
     /**
      * @param string $doc
@@ -39,6 +100,9 @@ abstract class ScraperSkeleton extends ErrorableObject
         return $defaultValue;
     }
 
+    /**
+     * @return string[]
+     */
     public static function getAllDefaultScrapers()
     {
         return [
@@ -46,5 +110,10 @@ abstract class ScraperSkeleton extends ErrorableObject
             'slim' => SlimCodeScraper::class,
             'laravel' => LaravelCodeScraper::class,
         ];
+    }
+
+    protected function getDefaultResponseWrapper()
+    {
+        return null;
     }
 }

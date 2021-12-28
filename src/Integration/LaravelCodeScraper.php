@@ -51,19 +51,20 @@ class LaravelCodeScraper extends ScraperSkeleton
         return 'API Specification';
     }
 
-    public function scrape(): Result
+    public function scrape(): array
     {
         $cwd = getcwd();
         $app = $this->getApp($cwd);
         $routes = \Illuminate\Support\Facades\Route::getRoutes()->getRoutes();
 
-        $result = new Result();
-        $result->specifications[0] = new Specification();
-        $result->specifications[0]->version = 'api';
-        $result->specifications[0]->title = $this->getTitle();
+        $result = [];
+
+        $result[0] = new Specification();
+        $result[0]->version = 'api';
+        $result[0]->title = $this->getTitle();
 
         foreach ($this->getServers() as $serverUrl) {
-            $result->specifications[0]->servers[] = new Server(['url' => $serverUrl]);
+            $result[0]->servers[] = new Server(['url' => $serverUrl]);
         }
 
         $path_wrapper = $this->getPathResultWrapper();
@@ -86,7 +87,7 @@ class LaravelCodeScraper extends ScraperSkeleton
 
             $endpoint->resultWrapper = $path_wrapper;
 //            $endpoint->result = 'null';
-            $result->specifications[0]->endpoints[] = $endpoint;
+            $result[0]->endpoints[] = $endpoint;
         }
 
         return $result;

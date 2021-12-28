@@ -29,7 +29,7 @@ abstract class BasicCommand extends Command
     {
         $output->getFormatter()->setStyle('notice_success', new OutputFormatterStyle('green', null));
         $output->getFormatter()->setStyle('notice_important', new OutputFormatterStyle('white', 'blue'));
-        $output->getFormatter()->setStyle('notice_info', new OutputFormatterStyle('black', 'default'));
+        $output->getFormatter()->setStyle('notice_info', new OutputFormatterStyle('default', 'black'));
         $output->getFormatter()->setStyle('notice_warning', new OutputFormatterStyle('red', null));
         $output->getFormatter()->setStyle('notice_error', new OutputFormatterStyle('black', 'red'));
         $output->getFormatter()->setStyle('trace', new OutputFormatterStyle('default', 'black'));
@@ -92,9 +92,10 @@ abstract class BasicCommand extends Command
 
     /**
      * @param ErrorableObject $emitter
+     * @param OutputInterface $output
      * @return ErrorableObject
      */
-    public function setMessagesCallbacks(ErrorableObject $emitter, OutputInterface $output)
+    public function setMessagesCallbacks(ErrorableObject $emitter, OutputInterface $output): ErrorableObject
     {
         $emitter->setOnNoticeCallback(function(string $message, int $level) use ($output) {
             $this->onNoticeCallback($output, $message, $level);

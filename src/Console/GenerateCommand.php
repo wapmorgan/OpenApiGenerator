@@ -66,6 +66,12 @@ class GenerateCommand extends BasicCommand
         return 0;
     }
 
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param array $result
+     * @return void
+     */
     public function generate(InputInterface $input, OutputInterface $output, array $result)
     {
         $output_dir = rtrim($input->getArgument('output'), '/');
@@ -85,6 +91,12 @@ class GenerateCommand extends BasicCommand
         }
     }
 
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param array $result
+     * @return int
+     */
     public function inspect(InputInterface $input, OutputInterface $output, array $result)
     {
 
