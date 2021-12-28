@@ -128,3 +128,4 @@ By default, they all are disabled.
 - [ ] Extracting class types into separate components (into openapi components).
 - [x] Add `@paramFormat` for specifying parameter format - partially.
 - [ ] Support for dynamic action arguments in dynamic model
+- [ ] Switch 3.0/3.1 (https://www.openapis.org/blog/2021/02/16/migrating-from-openapi-3-0-to-3-1-0)
