@@ -9,10 +9,9 @@ Main purpose of this library is to simplify OpenApi-specification generation for
 
 1. [What it does](#what-it-does)
 2. [How it works](#how-it-works)
-    - [Scraper's goal](#scrapers-goal)
-    - [Endpoint analyzing](#endpoint-analyzing)
 3. [Console commands](#console-commands)
 4. [Integrations](#integrations)
+5. [New scraper](#new-scraper)
 5. [Settings](#settings)
 6. [Limitations](#limitations)
 7. [ToDo](#todo)
@@ -22,48 +21,43 @@ Main purpose of this library is to simplify OpenApi-specification generation for
 It generates [OpenApi 3.0 specificaton files](https://swagger.io/docs/specification/about/) for your REST API written in
 PHP from source code based on any framework or written manually, whatever.
 
-# Console commands
-## Scrape
-Uses your scraper and returns list of endpoints.
-
-Usage: `./vendor/bin/openapi-generator scrape <scraper> [<specification>]`, where `<scraper>` is a class or file with scraper.
-Example: `./vendor/bin/openapi-generator scrape components/openapi/OpenApiScraper.php site`.
-
-## Generate
-Generates openapi-files from scraper and generator.
-
-Usage: `./vendor/bin/openapi-generator generate [-f|--format FORMAT] <scraper> <generator> [<specification> [<output>]]`:
-- `generator` - file or class of Generator
-- `specification` - regex for module
-- `output` - directory for output files
-
-Example: 
-- `./vendor/bin/openapi-generator generate components/openapi/OpenApiScraper.php components/openapi/OpenApiGenerator.php`.
-- `./vendor/bin/openapi-generator generate wapmorgan\\OpenApiGenerator\\Integration\\LaravelCodeScraper wapmorgan\\OpenApiGenerator\\Generator\\DefaultGenerator`.
-
 # How it works
 
 1. **Scraper** collects info about specifications, tags, security schemes and servers, and lists all endpoints.
 2. **Generator** fulfills openapi-specification with endpoints information:
-    - endpoints description (from php-doc)
-    - endpoints parameters (from callback signature or callback php-doc)
-    - endpoints result (from php-doc or defined explicit)
+    - summary  and description (first line and rest of php-doc)
+    - parameters: from php-doc: `@param`/`@paramEnum`/`@paramExample`/`@paramFormat`,  from function signature: `string $text`.
+    - result declared in php-doc (`@return SendMessageResponse`)
 
 More detailed process description is in [How it works](docs/how_it_works.md) document.
 
-## Scraper
+# Console commands
+## Scrape
+Uses your scraper and returns list of endpoints.
 
-## Generator
+Usage:
 
-Generator (`\wapmorgan\OpenApiGenerator\Generator\DefaultGenerator`) parses following information about every endpoint:
+`./vendor/bin/openapi-generator scrape [--scraper SCRAPER] [--specification SPECIFICATION]`, where `<scraper>` is a class or file with scraper.
 
-- Endpoint summary  and description (first line and rest of php-doc).
-- Endpoint parameters: from php-doc: `@param`,  from function signature: `string $text`.
-    Also, following tags are supported:
-    - `@paramEnum`
-    - `@paramExample`
-    - `@paramFormat`
-- Endpoint result declared in php-doc (`@return SendMessageResponse`)
+Example:
+
+`./vendor/bin/openapi-generator scrape --scraper components/openapi/OpenApiScraper.php --specification site`.
+
+## Generate
+Generates openapi-files from scraper and generator.
+
+Usage:
+
+`./vendor/bin/openapi-generator generate [--scraper SCRAPER] [-g|--generator GENERATOR] [--specification SPECIFICATION] [-f|--format FORMAT] [--inspect] [--] [<output>]`:
+
+- `generator` - file or class of Generator
+- `specification` - regex for module
+- `output` - directory for output files
+
+Example:
+
+- `./vendor/bin/openapi-generator generate --scraper components/openapi/OpenApiScraper.php components/openapi/OpenApiGenerator.php`.
+- `./vendor/bin/openapi-generator generate --scraper laravel --generator wapmorgan\\OpenApiGenerator\\Generator\\DefaultGenerator`.
 
 # Integrations
 ## Yii2
