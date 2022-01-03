@@ -32,18 +32,7 @@ class ClassDescriber
     /**
      * @var array List of base classes and rules for generating properties of them
      */
-    protected $classesDescribingOptions = [
-        null => [
-            self::CLASS_PUBLIC_PROPERTIES => true,
-            self::CLASS_VIRTUAL_PROPERTIES => [
-                'property' => [
-                    'enum' => true,
-                    'example' => true,
-                ],
-            ],
-            self::CLASS_REDIRECTION_PROPERTY => 'schema',
-        ],
-    ];
+    protected $classesDescribingOptions = [];
 
     /**
      * TypeDescriber constructor.
@@ -342,9 +331,9 @@ class ClassDescriber
      * @param string|null $class
      * @param array $options
      */
-    public function setClassDescribingOptions(?string $class, array $options = [])
+    public function setClassDescribingOptions(array $options)
     {
-        $this->classesDescribingOptions[$class] = $options;
+        $this->classesDescribingOptions = $options;
     }
 
     /**

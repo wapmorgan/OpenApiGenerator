@@ -28,14 +28,16 @@ class DefaultGenerator extends ErrorableObject
 {
     public const CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS = 1;
     public const TREAT_COMPLEX_ARGUMENTS_AS_BODY = 2;
+    public const TREAT_EXTRACTED_ARGUMENTS_AS_BODY = 5;
     public const PARSE_PARAMETERS_FROM_ENDPOINT = 3;
-    public const PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION = 4;
+    public const PARSE_PARAMETERS_FORMAT_DESCRIPTION = 4;
 
     protected $settings = [
         self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS => false,
         self::TREAT_COMPLEX_ARGUMENTS_AS_BODY => false,
+        self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY => false,
         self::PARSE_PARAMETERS_FROM_ENDPOINT => false,
-        self::PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION => false,
+        self::PARSE_PARAMETERS_FORMAT_DESCRIPTION => false,
     ];
 
     /**
@@ -126,12 +128,19 @@ class DefaultGenerator extends ErrorableObject
      */
     public function generate(ScraperSkeleton $scraper): array
     {
+        // initialize generator
+        $this->applySettings($scraper->getGeneratorSettings());
+        $this->pathDescriber->setArgumentExtractors($scraper->getArgumentExtractors());
+        $this->pathDescriber->setCommonParameterDescription($scraper->getCommonParametersDescription());
+        $this->pathDescriber->setCustomFormats($scraper->getCustomFormats());
+        $this->classDescriber->setClassDescribingOptions($scraper->getClassDescribingOptions());
+
+        // get information about endpoints
         $scrape_result = $scraper->scrape();
 
         $this->call($this->onStartCallback, [$scrape_result]);
 
         $result = [];
-
         foreach ($scrape_result as $specification) {
             $result[] = new GeneratorResultSpecification([
                 'id' => $specification->version,
@@ -249,6 +258,14 @@ class DefaultGenerator extends ErrorableObject
         }
 
         $this->settings[$setting] = $value;
+    }
+
+    public function applySettings(array $settings)
+    {
+        foreach ($settings as $setting => $value)
+        {
+            $this->changeSetting($setting, $value);
+        }
     }
 
     /**
@@ -410,7 +427,10 @@ class DefaultGenerator extends ErrorableObject
         }
 
         if ($this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY]) {
-            $path_request_body = $this->pathDescriber->generatePathOperationBody($path_reflection, $doc_block);
+            $path_request_body = $this->pathDescriber->generatePathOperationBody(
+                $path_reflection,
+                $doc_block,
+                $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY]);
 
             // if request has body and method set to GET, change it to POST
             if ($path_request_body !== null
@@ -446,11 +466,20 @@ class DefaultGenerator extends ErrorableObject
             $path_response_schemas = $this->pathDescriber->generationPathMethodResponseFromType($path_reflection, $resultPath->result, $resultPath->resultWrapper);
         }
 
-        $path_method->responses = [
-            $this->pathDescriber->combineResponseWithWrapper($path_response_schemas, $path_reflection, $resultPath->resultWrapper)
-        ];
+        if (!empty($path_response_schemas)) {
+            $path_method->responses = [
+                $this->pathDescriber->combineResponseWithWrapper(
+                    $path_response_schemas,
+                    $path_reflection,
+                    $resultPath->resultWrapper
+                )
+            ];
+        }
 
-        $path_method->parameters = $this->pathDescriber->generatePathOperationParameters($path_reflection, $doc_block);
+        $path_method->parameters = $this->pathDescriber->generatePathOperationParameters(
+            $path_reflection,
+            $doc_block,
+            $this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY] && $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY]);
 
         if ($this->settings[self::PARSE_PARAMETERS_FROM_ENDPOINT]
             && preg_match_all('~\{([a-z]+)\}~i', $resultPath->id, $matches) > 0) {

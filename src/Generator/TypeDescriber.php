@@ -50,7 +50,7 @@ class TypeDescriber
      * @param string|null $typeSpecification Тип (скалярный или сложный)
      * @param string|array|null $defaultValue
      * @param bool $isNullableType
-     * @param string|null $schemaType
+     * @param string|null $schemaType Parameter|Schema|Property|null
      * @param null $kindOfType
      * @return Schema|Property
      * @throws ReflectionException

@@ -41,4 +41,12 @@ class ReflectionsCollection
         }
         return static::$methods[$className][$methodName];
     }
+
+    public static function getProtectedProperty(object $obj, string $property)
+    {
+        $refl = new \ReflectionObject($obj);
+        $prop = $refl->getProperty($property);
+        $prop->setAccessible(true);
+        return $prop->getValue($obj);
+    }
 }

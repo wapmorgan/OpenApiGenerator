@@ -25,6 +25,8 @@ use const OpenApi\UNDEFINED;
 
 class PathDescriber
 {
+    public const
+        SKIP_ARGUMENTS = 1;
     /**
      * @var DefaultGenerator
      */
@@ -43,7 +45,15 @@ class PathDescriber
      */
     protected $customFormats = [];
 
-    protected $commonParameters = [];
+    /**
+     * @var array
+     */
+    protected $commonParametersDescription = [];
+
+    /**
+     * @var array
+     */
+    protected $argumentExtractors = [];
 
     /**
      * TypeDescriber constructor.
@@ -59,9 +69,9 @@ class PathDescriber
      * @param $description
      * @return $this
      */
-    public function setCommonParameterDescription(string $name, string $description): PathDescriber
+    public function setCommonParameterDescription(array $descriptions): PathDescriber
     {
-        $this->commonParameters[$name] = $description;
+        $this->commonParametersDescription = $descriptions;
         return $this;
     }
 
@@ -70,9 +80,19 @@ class PathDescriber
      * @param array $formatConfig
      * @return $this
      */
-    public function setCustomFormat(string $formatName, array $formatConfig): PathDescriber
+    public function setCustomFormats(array $customFormats): PathDescriber
     {
-        $this->customFormats[$formatName] = $formatConfig;
+        $this->customFormats = $customFormats;
+        return $this;
+    }
+
+    /**
+     * @param array $extractors
+     * @return $this
+     */
+    public function setArgumentExtractors(array $extractors)
+    {
+        $this->argumentExtractors = $extractors;
         return $this;
     }
 
@@ -341,7 +361,11 @@ class PathDescriber
      * @return Parameter[]
      * @throws ReflectionException
      */
-    public function generatePathOperationParameters(ReflectionMethod $actionReflection, ?DocBlock $docBlock): array
+    public function generatePathOperationParameters(
+        ReflectionMethod $actionReflection,
+        ?DocBlock $docBlock,
+        bool $treatExtractedArgumentsAsBody
+    ): array
     {
         /** @var array<string, Param> $doc_block_parameters */
         $doc_block_parameters = [];
@@ -349,6 +373,7 @@ class PathDescriber
 
         $location = $actionReflection->getDeclaringClass()->getName().':'.$actionReflection->getName().'()';
 
+        // phpDoc arguments
         if ($docBlock !== null) {
             /** @var Param $action_parameter */
             foreach ($docBlock->getTagsByName('param') as $action_parameter) {
@@ -417,8 +442,10 @@ class PathDescriber
         }
 
         $parameters = [];
+        $required = [];
 
         // Generation @OA\Parameter's
+        // php arguments
         if ($actionReflection->getNumberOfParameters() > 0) {
             foreach ($actionReflection->getParameters() as $parameter) {
                 $parameter_type_kind = $this->generator->getTypeDescriber()->getKindForType($parameter->getDeclaringClass()->getName(),
@@ -427,9 +454,26 @@ class PathDescriber
                         : null);
 
                 // it is body param - skip
-                if ($parameter_type_kind !== null
-                    && $parameter_type_kind !== TypeDescriber::PRIMITIVE_TYPE)
-                    continue;
+                if ($parameter_type_kind !== null && $parameter_type_kind !== TypeDescriber::PRIMITIVE_TYPE)
+                {
+                    // another extractors
+                    if (!$treatExtractedArgumentsAsBody && !empty($this->argumentExtractors) && !$parameter->getType()->isBuiltin()) {
+                        $argument_type = $parameter->getType()->getName();
+                        foreach ($this->argumentExtractors as $argumentExtractorType => &$argumentExtractor) {
+                            if (is_string($argumentExtractor)) {
+                                $argumentExtractor = new $argumentExtractor($this->generator);
+                            }
+
+                            if (is_subclass_of($argument_type, $argumentExtractorType)) {
+                                $parameters += $argumentExtractor->extract($actionReflection, $parameter, $required);
+                            }
+                        }
+                        continue;
+                    } else {
+                        continue;
+                    }
+                }
+
 
                 $parameter_annotation = $this->generateSchemaForParameter(
                     $parameter,
@@ -439,7 +483,7 @@ class PathDescriber
                     $parameters_examples[$parameter->getName()] ?? null,
                 );
 
-                if ($parameter_annotation !== null) {
+                if (isset($parameter_annotation)) {
                     $parameters[] = $parameter_annotation;
                 }
             }
@@ -453,9 +497,13 @@ class PathDescriber
      * @param DocBlock|null $docBlock
      * @return RequestBody|null
      */
-    public function generatePathOperationBody(ReflectionMethod $actionReflection, ?DocBlock $docBlock): ?RequestBody
+    public function generatePathOperationBody(
+        ReflectionMethod $actionReflection,
+        ?DocBlock $docBlock,
+        bool $treatExtractedArgumentsAsBody
+    ): ?RequestBody
     {
-        $schema = $this->generateSchemaForRequestBody($docBlock, $actionReflection);
+        $schema = $this->generateSchemaForRequestBody($docBlock, $actionReflection, $treatExtractedArgumentsAsBody);
 
         if ($schema === null) {
             return null;
@@ -554,7 +602,7 @@ class PathDescriber
         if ($docBlockParameter !== null && $docBlockParameter->getDescription()) {
             $description = (string)$docBlockParameter->getDescription();
 
-            if ($this->generator->getSetting(DefaultGenerator::PARSE_PARAMETERS_FORMAT_FORMAT_DESCRIPTION)
+            if ($this->generator->getSetting(DefaultGenerator::PARSE_PARAMETERS_FORMAT_DESCRIPTION)
                 && strpos($description, ' ') !== false
                 && preg_match('~^\(([a-z]+)\)$~i', strstr($description, ' ', true), $possible_format_match)) {
                 $possible_format = $possible_format_match[1];
@@ -562,7 +610,7 @@ class PathDescriber
         }
 
         if (!isset($description) || empty($description)) {
-            $description = ($this->commonParameters[$pathParameter->getName()] ?? '');
+            $description = ($this->commonParametersDescription[$pathParameter->getName()] ?? '');
         }
 
         $schema = $this->generator->getTypeDescriber()->generateSchemaForType(
@@ -613,7 +661,11 @@ class PathDescriber
      * @return null
      * @throws ReflectionException
      */
-    protected function generateSchemaForRequestBody(?DocBlock $docBlock, ReflectionMethod $actionReflection): ?Schema
+    protected function generateSchemaForRequestBody(
+        ?DocBlock $docBlock,
+        ReflectionMethod $actionReflection,
+        bool $treatExtractedArgumentsAsBody
+    ): ?Schema
     {
         /** @var array<string, Param> $doc_block_parameters */
         $doc_block_parameters = [];
@@ -647,8 +699,30 @@ class PathDescriber
                         : null);
 
                 // it is request param - skip
-                if ($parameter_type_kind === null || $parameter_type_kind === TypeDescriber::PRIMITIVE_TYPE)
+                if ($parameter_type_kind === null)
                     continue;
+
+                if ($parameter_type_kind === TypeDescriber::PRIMITIVE_TYPE) {
+                    // another extractors
+                    if ($treatExtractedArgumentsAsBody && !empty($this->argumentExtractors) && !$parameter->getType()->isBuiltin()) {
+                        $argument_type = $parameter->getType()->getName();
+                        foreach ($this->argumentExtractors as $argumentExtractorType => &$argumentExtractor) {
+                            if (is_string($argumentExtractor)) {
+                                $argumentExtractor = new $argumentExtractor($this->generator);
+                            }
+
+                            if (is_subclass_of($argument_type, $argumentExtractorType)) {
+//                                $schema->properties[$parameter->getName()] = $this->generateSchemaForBodyParameter(
+//                                    $parameter,
+//                                    $doc_block_parameters[$parameter->getName()] ?? null,
+//                                    $isRequired
+//                                );
+                                $schema->properties += $argumentExtractor->extract($actionReflection, $parameter, $schema->required);
+                            }
+                        }
+                    }
+                    continue;
+                }
 
                 $schema->properties[$parameter->getName()] = $this->generateSchemaForBodyParameter(
                     $parameter,

@@ -1,6 +1,7 @@
 <?php
 namespace wapmorgan\OpenApiGenerator;
 
+use wapmorgan\OpenApiGenerator\Generator\ClassDescriber;
 use wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper;
@@ -38,7 +39,10 @@ abstract class ScraperSkeleton extends ErrorableObject
         ];
     }
 
-
+    public function getServers()
+    {
+        return $this->servers;
+    }
 
     /**
      * @param Specification $specification
@@ -100,6 +104,11 @@ abstract class ScraperSkeleton extends ErrorableObject
         return $defaultValue;
     }
 
+    public function getGeneratorSettings(): array
+    {
+        return [];
+    }
+
     /**
      * @return string[]
      */
@@ -109,6 +118,37 @@ abstract class ScraperSkeleton extends ErrorableObject
             'yii2' => Yii2CodeScraper::class,
             'slim' => SlimCodeScraper::class,
             'laravel' => LaravelCodeScraper::class,
+        ];
+    }
+
+    public function getArgumentExtractors(): array
+    {
+        return [];
+    }
+
+    public function getCommonParametersDescription(): array
+    {
+        return [];
+    }
+
+    public function getCustomFormats(): array
+    {
+        return [];
+    }
+
+    public function getClassDescribingOptions(): array
+    {
+        return [
+            null => [
+                ClassDescriber::CLASS_PUBLIC_PROPERTIES => true,
+                ClassDescriber::CLASS_VIRTUAL_PROPERTIES => [
+                    'property' => [
+                        'enum' => true,
+                        'example' => true,
+                    ],
+                ],
+                ClassDescriber::CLASS_REDIRECTION_PROPERTY => 'schema',
+            ],
         ];
     }
 
