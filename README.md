@@ -9,7 +9,7 @@ Main purpose of this library is to simplify OpenApi-specification generation for
 
 1. [What it does](#what-it-does)
 2. [How it works](#how-it-works)
-3. [Console commands](#console-commands)
+3. [How to use](#how-to-use)
 4. [Integrations](#integrations)
 5. [New scraper](#new-scraper)
 5. [Settings](#settings)
@@ -31,58 +31,16 @@ PHP from source code based on any framework or written manually, whatever.
 
 More detailed process description is in [How it works](docs/how_it_works.md) document.
 
-# Console commands
-## Scrape
-Uses your scraper and returns list of endpoints.
+# How to use
+- Parse and compose list of endpoints - `./vendor/bin/openapi-generator scrape --scraper SCRAPER`.
+- Generate specifications - `./vendor/bin/openapi-generator generate --scraper SCRAPER --generator GENERATOR`.
+where `SCRAPER` is a class or file with scraper.
 
-Usage:
-
-`./vendor/bin/openapi-generator scrape [--scraper SCRAPER] [--specification SPECIFICATION]`, where `<scraper>` is a class or file with scraper.
-
-Example:
-
-`./vendor/bin/openapi-generator scrape --scraper components/openapi/OpenApiScraper.php --specification site`.
-
-## Generate
-Generates openapi-files from scraper and generator.
-
-Usage:
-
-`./vendor/bin/openapi-generator generate [--scraper SCRAPER] [-g|--generator GENERATOR] [--specification SPECIFICATION] [-f|--format FORMAT] [--inspect] [--] [<output>]`:
-
-- `generator` - file or class of Generator
-- `specification` - regex for module
-- `output` - directory for output files
-
-Example:
-
-- `./vendor/bin/openapi-generator generate --scraper components/openapi/OpenApiScraper.php components/openapi/OpenApiGenerator.php`.
-- `./vendor/bin/openapi-generator generate --scraper laravel --generator wapmorgan\\OpenApiGenerator\\Generator\\DefaultGenerator`.
+More detailed description is in [How to use](docs/how_to_use.md) document.
 
 # Integrations
-## Yii2
-
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper`](src/Integration/Yii2CodeScraper.php)
-
-Will be parsed all application and modules controllers for inline and external actions:
-
-| Yii2 entity                                                            | OpenApi entity                                        | id                                                                                           | phpDoc tags                                                             |
-|------------------------------------------------------------------------|-------------------------------------------------------|----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
-| Every module                                                           | a specification (separate openapi-specification file) | @alias if present, folder name otherwise                                                     | @alias, @description, @docs                                             |
-| Every controller                                                       | a section (tag in openapi terms)                      | class name: CamelCaseController to lower/case                                                | @title, @description, @docs                                             |
-| Every controller action (`actionNNN()` method or entry in `actions()`) | an endpoint                                           | @alias if present, **NNNN** from `actionNNNN` name if inline, key from `actions()` otherwise | @alias, @auth, @param, @paramExample, @paramEnum, @paramFormat, @result |
-
-Options:
-- `bool $scrapeModules`, `bool $scrapeApplication` - scan modules or/and application controllers
-- `bool $scanControllerInlineActions`, `bool $scanControllerExternalActions` - scan inline or/and external actions in controllers
-
-## Slim
-
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper`](src/Integration/SlimCodeScraper.php)
-
-## Laravel
-
-- A scraper - [`\wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper`](src/Integration/LaravelCodeScraper.php)
+There's few integrations: yii2, laravel, slim.
+More detailed description is in [Integrations](docs/integrations.md) document.
 
 # New scraper
 
