@@ -30,7 +30,7 @@ class GenerateCommand extends BasicCommand
             ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file')
             ->addOption('generator', 'g', InputOption::VALUE_REQUIRED, 'The generator class or file', DefaultGenerator::class)
             ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
-            ->addArgument('output', InputArgument::OPTIONAL, 'Folder for output files', getcwd())
+            ->addArgument('output', InputArgument::OPTIONAL, 'Folder for output files (or `-- --` for output)', getcwd())
             ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Format of output: json or yaml', 'yaml')
             ->addOption('inspect', null, InputOption::VALUE_NONE, 'Probe run')
         ;
@@ -41,6 +41,7 @@ class GenerateCommand extends BasicCommand
      * @param OutputInterface $output
      * @return int|void
      * @throws \ReflectionException
+     * @throws \Exception
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
@@ -71,23 +72,34 @@ class GenerateCommand extends BasicCommand
      * @param OutputInterface $output
      * @param array $result
      * @return void
+     * @throws \Exception
      */
     public function generate(InputInterface $input, OutputInterface $output, array $result)
     {
         $output_dir = rtrim($input->getArgument('output'), '/');
-        if (!is_dir($output_dir)) {
-            if (is_file($output_dir)) throw new \InvalidArgumentException($output_dir.' is not a folder');
-            else if (!mkdir($output_dir, 0777, true)) throw new \InvalidArgumentException($output_dir.' could not be created');
-        } else if (!is_writable($output_dir) && !chmod($output_dir, 0777)) throw new \InvalidArgumentException($output_dir.' could not be set writable');
+        if ($output_dir !== '--') {
+            if (!is_dir($output_dir)) {
+                if (is_file($output_dir)) throw new \InvalidArgumentException($output_dir.' is not a folder');
+                else if (!mkdir($output_dir, 0777, true)) throw new \InvalidArgumentException($output_dir.' could not be created');
+            } else if (!is_writable($output_dir) && !chmod($output_dir, 0777)) throw new \InvalidArgumentException($output_dir.' could not be set writable');
+        }
 
         $output_format = $input->getOption('format');
 
+        /** @var GeneratorResultSpecification $specification */
         foreach ($result as $specification) {
-            $specification_file = $output_dir.'/'.$specification->id.'.'.$output_format;
-
-            $output->write('Writing '.$specification->id.' to '.$specification_file.' ... ');
-            $specification->specification->saveAs($specification_file);
-            $output->writeln('ok');
+            if ($output_dir === '--') {
+                $output->write(
+                    $output_format === 'yaml'
+                        ? $specification->specification->toYaml()
+                        : $specification->specification->toJson()
+                );
+            } else {
+                $specification_file = $output_dir.'/'.$specification->id.'.'.$output_format;
+                $output->write('Writing ' . $specification->id . ' to ' . $specification_file . ' ... ');
+                $specification->specification->saveAs($specification_file);
+                $output->writeln('ok');
+            }
         }
     }
 
