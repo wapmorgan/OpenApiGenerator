@@ -349,10 +349,10 @@ class DefaultGenerator extends ErrorableObject
 
                 case HttpSecurityScheme::class:
                     $openapi->components->securitySchemes[] = new SecurityScheme([
-                         'securityScheme' => $securityScheme->id,
-                         'type' => $securityScheme->type,
-                         'scheme' => $securityScheme->scheme,
-                         'bearerFormat' => $securityScheme->bearerFormat !== null
+                        'securityScheme' => $securityScheme->id,
+                        'type' => $securityScheme->type,
+                        'scheme' => $securityScheme->scheme,
+                        'bearerFormat' => $securityScheme->bearerFormat !== null
                              ? $securityScheme->bearerFormat
                              : \OpenApi\Generator::UNDEFINED,
                      ]);
@@ -360,16 +360,18 @@ class DefaultGenerator extends ErrorableObject
 
                 case OAuth2SecurityScheme::class:
                     $openapi->components->securitySchemes[] = new SecurityScheme([
-                         'securityScheme' => $securityScheme->id,
-                         'description' => $securityScheme->description,
-                         'flows' => $securityScheme->flows,
+                        'type' => 'oauth2',
+                        'securityScheme' => $securityScheme->id,
+                        'description' => $securityScheme->description,
+                        'flows' => $securityScheme->flows,
                      ]);
                     break;
 
                 case OpenIdConnectSecurityScheme::class:
                     $openapi->components->securitySchemes[] = new SecurityScheme([
-                         'securityScheme' => $securityScheme->id,
-                         'openIdConnectUrl' => $securityScheme->openIdConnectUrl,
+                        'type' => 'openIdConnect',
+                        'securityScheme' => $securityScheme->id,
+                        'openIdConnectUrl' => $securityScheme->openIdConnectUrl,
                      ]);
                     break;
             }
@@ -445,7 +447,7 @@ class DefaultGenerator extends ErrorableObject
         /** @var Operation $path_method */
         $path_method = $path->{strtolower($resultPath->httpMethod)} = new $operation_class([
             'operationId' => $resultPath->id.'-'.$resultPath->httpMethod,
-            'summary' => $doc_block ? $doc_block->getSummary() : null,
+            'summary' => $doc_block ? $doc_block->getSummary() : '',
             'tags' => $resultPath->tags,
         ]);
 
@@ -470,6 +472,14 @@ class DefaultGenerator extends ErrorableObject
             $path_method->responses = [
                 $this->pathDescriber->combineResponseWithWrapper(
                     $path_response_schemas,
+                    $path_reflection,
+                    $resultPath->resultWrapper
+                )
+            ];
+        } else if (!empty($resultPath->resultWrapper)) {
+            $path_method->responses = [
+                $this->pathDescriber->combineResponseWithWrapper(
+                    null,
                     $path_reflection,
                     $resultPath->resultWrapper
                 )
