@@ -51,9 +51,9 @@ class Yii2CodeScraper extends ScraperSkeleton
             if ($module_class !== null) {
                 $module_reflection = ReflectionsCollection::getClass($module_class);
                 $module_doc = $module_reflection->getDocComment();
-                $module_description = $this->getDocParameter($module_doc, 'description');
-                $module_docs = $this->getDocParameter($module_doc, 'docs');
                 $module_alias = $this->getDocParameter($module_doc, 'alias');
+                $module_docs = $this->getDocParameter($module_doc, 'docs');
+                $module_description = $this->getMultiLineDocParameter($module_doc, 'description');
             }
 
             $specification = $this->newSpecification(

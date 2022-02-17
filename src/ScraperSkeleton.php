@@ -85,13 +85,14 @@ abstract class ScraperSkeleton extends ErrorableObject
     /**
      * @param string $doc
      * @param string $parameter
-     * @param null $defaultValue
+     * @param mixed|null $defaultValue
      * @return string|null
      */
     protected function getDocParameter(string $doc, string $parameter, $defaultValue = null)
     {
-        if (empty($doc))
+        if (empty($doc)) {
             return $defaultValue;
+        }
 
         $doc = explode("\n", $doc);
         foreach ($doc as $line) {
@@ -102,6 +103,35 @@ abstract class ScraperSkeleton extends ErrorableObject
         }
 
         return $defaultValue;
+    }
+
+    /**
+     * @param string $doc
+     * @param string $parameter
+     * @param mixed|null $defaultValue
+     * @return string|null
+     */
+    protected function getMultiLineDocParameter(string $doc, string $parameter, $defaultValue = null)
+    {
+        if (empty($doc)) {
+            return $defaultValue;
+        }
+
+        $doc = explode("\n", $doc);
+        $result = null;
+        foreach ($doc as $i => $line) {
+            $line = trim($line, " *\t");
+            if (!empty($result)) {
+                if (strpos($line, '@') === 0) {
+                    return $result;
+                }
+                $result .= $line.PHP_EOL;
+            } else if (strpos($line, '@'.$parameter) === 0) {
+                $result .= trim(substr($line, strlen($parameter) + 1)).PHP_EOL;
+            }
+        }
+
+        return $result ?: $defaultValue;
     }
 
     public function getGeneratorSettings(): array
