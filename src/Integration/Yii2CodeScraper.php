@@ -67,7 +67,7 @@ class Yii2CodeScraper extends ScraperSkeleton
 
                 $controller_doc = $controller_reflection->getDocComment();
                 $controller_title = $this->getDocParameter($controller_doc, 'title', '');
-                $controller_description = $this->getDocParameter($controller_doc, 'description', '');
+                $controller_description = $this->getMultiLineDocParameter($controller_doc, 'description', '');
                 $controller_docs = $this->getDocParameter($controller_doc, 'docs', '');
                 $controller_tag = !empty($controller_title)
                     ? '('.$controller_configuration['controllerId'].') '.$controller_title
