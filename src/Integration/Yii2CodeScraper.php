@@ -175,14 +175,14 @@ class Yii2CodeScraper extends ScraperSkeleton
                         }
 
                         // Обработка псевдо-вложенных контроллеров - перевод CamelCase в путь camel/case
-                        preg_match_all('~[A-Z][a-z]+~', $matches['controller'], $uriParts);
+                        preg_match_all('~[A-Z][a-z0-9]+~', $matches['controller'], $uriParts);
                         $controller_actions = $this->generateClassMethodsList($added_class);
 
                         if (!empty($controller_actions)) {
                             $total_actions += count($controller_actions);
                             $controllers_list[$module_id][$added_class] = [
                                 'moduleId' => $module_id,
-                                'controllerId' => implode('/', array_map('strtolower', $uriParts[0])),
+                                'controllerId' => implode('-', array_map('strtolower', $uriParts[0])),
                                 'actions' => $controller_actions,
                             ];
                         }
