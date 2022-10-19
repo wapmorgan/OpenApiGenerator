@@ -340,6 +340,19 @@ class TypeDescriber
      */
     public function getImportsFromFile(string $phpFile): array
     {
+        static $allowed_tokens = [];
+
+        if (empty($allowed_tokens)) {
+            $allowed_tokens = [
+                T_STRING,
+                T_NS_SEPARATOR,
+                T_WHITESPACE
+            ];
+            if (defined('T_NAME_QUALIFIED')) {
+                $allowed_tokens[] = T_NAME_QUALIFIED;
+            }
+        }
+
         $tokens = token_get_all(file_get_contents($phpFile));
         $imports = [];
 
@@ -349,7 +362,7 @@ class TypeDescriber
             if (is_array($token) && $token[0] === T_USE) {
                 $import = null;
                 $i += 2;
-                while (is_array($tokens[$i]) && in_array($tokens[$i][0], [T_STRING, T_NS_SEPARATOR, T_WHITESPACE])) {
+                while (is_array($tokens[$i]) && in_array($tokens[$i][0], $allowed_tokens)) {
                     if ($tokens[$i][0] !== T_WHITESPACE) {
                         $import .= $tokens[$i][1];
                     }
