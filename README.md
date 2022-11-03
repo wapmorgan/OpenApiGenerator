@@ -7,46 +7,52 @@ It is OpenApi configuration generator that works with origin source code.
 
 Main purpose of this library is to simplify OpenApi-specification generation for existing API with a lot of methods and especially automatize it to avoid manual changes. Idea by [@maxonrock](https://github.com/maxonrock).
 
-1. [What it does](#what-it-does)
-2. [How it works](#how-it-works)
-3. [How to use](#how-to-use)
-4. [Integrations](#integrations)
-5. [New scraper](#new-scraper)
-5. [Settings](#settings)
-6. [Limitations](#limitations)
-7. [ToDo](#todo)
+1. [Open Api generator](#openapigenerator)
+- [How it works](#how-it-works)
+- [How to use](#how-to-use)
+- [Integrations](#integrations)
+2. [Extending](#extending)
+- [New scraper](#new-scraper)
+- [Settings](#settings)
+- [Limitations](#limitations)
+- [ToDo](#todo)
 
-# What it does
+# OpenApiGenerator
+**What it does?**
 
-It generates [OpenApi 3.0 specificaton files](https://swagger.io/docs/specification/about/) for your REST API written in
-PHP from source code based on any framework or written manually, whatever.
+It generates [OpenApi 3.0 specification files](https://swagger.io/docs/specification/about/) for your REST API written 
+in PHP directly from source code based on any framework or written manually, whatever. You do not need to write 
+openapi-specification manually.
 
-# How it works
+## How it works
 
-1. **Scraper** collects info about specifications, tags, security schemes and servers, and lists all endpoints.
-2. **Generator** fulfills openapi-specification with endpoints information:
-    - summary  and description (first line and rest of php-doc)
-    - parameters: from php-doc: `@param`/`@paramEnum`/`@paramExample`/`@paramFormat`,  from function signature: `string $text`.
-    - result declared in php-doc (`@return SendMessageResponse`)
+1. **Scraper** collects info about specifications (tags, security schemes and servers, lists all endpoints) and provides settings for Generator. Scraper is project- and framework-dependent.
+2. **Generator** fulfills openapi-specification with endpoints information by analyzing source code:
+    - summary and description of actions
+    - parameters and result of actions
+   Generator is common for all integrations. It just receives information from Scraper and analyzes code by Scraper rules.
 
-More detailed process description is in [How it works](docs/how_it_works.md) document.
+More detailed process description is in [How it works document](docs/how_it_works.md).
 
-# How to use
-- Parse and compose list of endpoints - `./vendor/bin/openapi-generator scrape --scraper SCRAPER`.
-- Generate specifications - `./vendor/bin/openapi-generator generate --scraper SCRAPER --generator GENERATOR`.
-where `SCRAPER` is a class or file with scraper.
+## How to use
+Invoke console script to generate openapi for your project (with help of integrations): 
 
-More detailed description is in [How to use](docs/how_to_use.md) document.
+For example, for yii2-project:
+- Generate specifications to files in `api_docs` folder - `./vendor/bin/openapi-generator generate --scraper yii2 ./api_docs/`.
+- Parse and compose list of endpoints - `./vendor/bin/openapi-generator scrape --scraper yii2`.
 
-# Integrations
-There's few integrations: yii2, laravel, slim.
-More detailed description is in [Integrations](docs/integrations.md) document.
+More detailed description is in [How to use document](docs/how_to_use.md).
 
-# New scraper
+## Integrations
+There's few integrations: Yii2, Laravel, Slim. Details is in [Integrations document](docs/integrations.md).
+You can write your own integration for framework or your project
+
+# Extending
+## New scraper
 
 You use (or extend) a predefined _scraper_ (see Integrations) or create your own _scraper_ from scratch (extend `DefaultScraper`), which should return a result with list of your API endpoints. Also, your scraper should provide tags, security schemes and so on.
 
-Scraper should returns list of **specifications** (for example, list of api versions) with data in each _specification_:
+Scraper should return list of **specifications** (for example, list of api versions) with data in each _specification_:
 - _version_ - unique ID of specification.
 - _description_ - summary of specification.
 - _externalDocs_ - URL to external docs.
@@ -57,7 +63,7 @@ Scraper should returns list of **specifications** (for example, list of api vers
 
 Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
-# Settings
+## Settings
 DefaultGenerator provides list of settings to tune generator.
 
 - `DefaultGenerator::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS` - if callback has arguments with `object`, `array`, `stdclass`, `mixed` type or class-typed, method of argument will be changed to `POST` and these arguments will be placed as `body` data in json-format.
@@ -74,12 +80,12 @@ $generator->changeSetting(DefaultGenerator::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAM
 
 By default, they all are disabled.
 
-# Limitations
+## Limitations
 - Only query parameters supported (`url?param1=...&param2=...`) or body json parameters (`{data: 123`).
 - Only one response type supported - HTTP 200 response.
 - No support for parameters' / fields' / properties' `format`, `example` and other validators.
 
-# ToDo
+## ToDo
 - [x] Support for few operations on one endpoint (GET/POST/PUT/DELETE/...).
 - [x] Support for body parameters (when parameters are complex objects) - partially.
 - [ ] Support for few responses (with different HTTP codes).
