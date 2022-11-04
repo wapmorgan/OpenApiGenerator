@@ -5,6 +5,7 @@ use wapmorgan\OpenApiGenerator\Generator\ClassDescriber;
 use wapmorgan\OpenApiGenerator\Integration\LaravelCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\SlimCodeScraper;
 use wapmorgan\OpenApiGenerator\Integration\Yii2CodeScraper;
+use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Result;
 use wapmorgan\OpenApiGenerator\Scraper\SecurityScheme\ApiKeySecurityScheme;
 use wapmorgan\OpenApiGenerator\Scraper\Specification;
@@ -14,20 +15,20 @@ abstract class ScraperSkeleton extends ErrorableObject
     public $specificationPattern = '.+';
     public $specificationAntiPattern = false;
 
-    public $specificationTitle = 'API';
-    public $specificationDescription = 'API version %s';
+    public string $specificationTitle = 'API';
+    public string $specificationDescription = 'API version %s';
 
-    public $servers = [
+    public array $servers = [
         'http://localhost:8080/' => 'Local server',
     ];
 
-    public $defaultSecurityScheme = [];
-    public $_securitySchemesCached;
+    public array $defaultSecurityScheme = [];
+    public ?array $_securitySchemesCached;
 
     /**
      * @return ApiKeySecurityScheme[]
      */
-    public function getAllSecuritySchemes()
+    public function getAllSecuritySchemes(): array
     {
         return [
             'defaultAuth' => new ApiKeySecurityScheme([
@@ -88,7 +89,7 @@ abstract class ScraperSkeleton extends ErrorableObject
      * @param mixed|null $defaultValue
      * @return string|null
      */
-    protected function getDocParameter(string $doc, string $parameter, $defaultValue = null)
+    protected function getDocParameter(string $doc, string $parameter, ?string $defaultValue = null): ?string
     {
         if (empty($doc)) {
             return $defaultValue;
@@ -111,7 +112,7 @@ abstract class ScraperSkeleton extends ErrorableObject
      * @param mixed|null $defaultValue
      * @return string|null
      */
-    protected function getMultiLineDocParameter(string $doc, string $parameter, $defaultValue = null)
+    protected function getMultiLineDocParameter(string $doc, string $parameter, ?string $defaultValue = null): ?string
     {
         if (empty($doc)) {
             return $defaultValue;
@@ -142,7 +143,7 @@ abstract class ScraperSkeleton extends ErrorableObject
     /**
      * @return string[]
      */
-    public static function getAllDefaultScrapers()
+    public static function getAllDefaultScrapers(): array
     {
         return [
             'yii2' => Yii2CodeScraper::class,
@@ -182,8 +183,13 @@ abstract class ScraperSkeleton extends ErrorableObject
         ];
     }
 
-    protected function getDefaultResponseWrapper()
+    protected function getDefaultResponseWrapper(): ?PathResultWrapper
     {
         return null;
+    }
+
+    public function getDefaultAlternativeResponses(): array
+    {
+        return [];
     }
 }

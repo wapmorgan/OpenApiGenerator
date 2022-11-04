@@ -13,16 +13,16 @@ use yii\web\Controller;
 
 class Yii2CodeScraper extends ScraperSkeleton
 {
-    public $scrapeModules = true;
-    public $scrapeApplication = true;
-    public $scanControllerInlineActions = true;
-    public $scanControllerExternalActions = true;
+    public bool $scrapeModules = true;
+    public bool $scrapeApplication = true;
+    public bool $scanControllerInlineActions = true;
+    public bool $scanControllerExternalActions = true;
     /** @var array<string>string[] Pairs of string-string to be replaced from module folder name and module path in URL */
-    public $replacesForModulePath = [];
+    public array $replacesForModulePath = [];
 
-    public $controllerInModuleClassPattern =
+    public string $controllerInModuleClassPattern =
         '~^app\\\\modules\\\\(?<moduleId>[a-z0-9_]+)\\\\controllers\\\\(?<controller>[a-z0-9_]+)Controller$~i';
-    public $actionAsControllerMethodPattern = '~^action(?<action>[A-Z][a-z0-9_]+)$~i';
+    public string $actionAsControllerMethodPattern = '~^action(?<action>[A-Z][a-z0-9_]+)$~i';
 
     /**
      * @inheritDoc

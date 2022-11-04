@@ -12,6 +12,8 @@ use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 
 abstract class SlimCodeScraper extends ScraperSkeleton
 {
+    protected string $actionClass = Action::class;
+
     /**
      * @return App
      */
@@ -58,7 +60,7 @@ abstract class SlimCodeScraper extends ScraperSkeleton
             $endpoint->httpMethod = strtolower(current($route->getMethods()));
 
             $callable = $route->getCallable();
-            if (is_string($callable) && class_exists($callable) && is_a($callable, Action::class, true)) {
+            if (is_string($callable) && class_exists($callable) && is_a($callable, $this->actionClass, true)) {
                 $endpoint->callback = [$callable, 'action'];
             }
 
