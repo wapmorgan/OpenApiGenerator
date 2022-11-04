@@ -19,12 +19,13 @@ use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 class LaravelCodeScraper extends ScraperSkeleton
 {
     /**
-     * @return Application
+     * @return Application|null
      */
-    public function getApp($workDir): Application
+    public function getApp($workDir): ?Application
     {
-        if (!file_exists($workDir.'/bootstrap/app.php'))
-            return false;
+        if (!file_exists($workDir.'/bootstrap/app.php')) {
+            return null;
+        }
 
         /** @var Application $app */
         $app = require_once $workDir.'/bootstrap/app.php';
