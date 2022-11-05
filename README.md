@@ -51,9 +51,9 @@ For example, for yii2-project:
   ./vendor/bin/openapi-generator generate --scraper yii2 ./ ./api_docs/
   ```
 4. Deploy swagger with specification
-    ```shell
+  ```shell
     docker run -p 80:8080 -e SWAGGER_JSON=/foo/0.0.1.yaml -v $(PWD):/foo swaggerapi/swagger-ui:v4.15.2    
-    ```
+  ```
 
 More detailed description is in [How to use document](docs/how_to_use.md).
 
