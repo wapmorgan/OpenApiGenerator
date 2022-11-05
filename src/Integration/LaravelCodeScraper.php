@@ -4,14 +4,8 @@ namespace wapmorgan\OpenApiGenerator\Integration;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rules\In;
-use OpenApi\Annotations\Parameter;
-use OpenApi\Annotations\Schema;
 use wapmorgan\OpenApiGenerator\Extractor\LaravelFormRequestExtractor;
 use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
-use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
-use wapmorgan\OpenApiGenerator\Scraper\Result;
 use wapmorgan\OpenApiGenerator\Scraper\Server;
 use wapmorgan\OpenApiGenerator\Scraper\Specification;
 use wapmorgan\OpenApiGenerator\ScraperSkeleton;
@@ -40,18 +34,21 @@ class LaravelCodeScraper extends ScraperSkeleton
         return 'API Specification';
     }
 
-    public function scrape(): array
+    public function scrape(string $folder): array
     {
-        $cwd = getcwd();
-        $app = $this->getApp($cwd);
+        $app = $this->getApp($folder);
+        if ($app === null) {
+            throw new \Exception('Could not start Application: not found starting script "/bootstrap/app.php"!');
+        }
         $routes = \Illuminate\Support\Facades\Route::getRoutes()->getRoutes();
+        $this->notice('Got ' . count($routes) . ' method(s) from laravel Route', self::NOTICE_IMPORTANT);
 
         $result = [];
 
         $result[0] = new Specification();
-        $result[0]->version = 'default';
-        $result[0]->title = $this->specificationTitle;
-        $result[0]->description = $this->specificationDescription;
+        $result[0]->version = static::$specificationVersion;
+        $result[0]->title = static::$specificationTitle;
+        $result[0]->description = static::$specificationDescription;
 
         foreach ($this->getServers() as $serverUrl => $serverDescription) {
             $result[0]->servers[] = new Server(['url' => $serverUrl, 'description' => $serverDescription]);
@@ -63,10 +60,15 @@ class LaravelCodeScraper extends ScraperSkeleton
             $pattern = '/'.ltrim($route->uri(), '/');
             $endpoint->id = $pattern;
             $endpoint->httpMethod = strtolower(current($route->methods()));
-            $callable = $route->action['controller'];
-            if (strpos($callable, '@') && (list($controller, $action) = explode('@', $callable))
-                && class_exists($controller) && is_a($controller, \Illuminate\Routing\Controller::class, true)) {
-                $endpoint->callback = [$controller, $action];
+
+            if (isset($route->action['controller'])) {
+                $callable = $route->action['controller'];
+                if (strpos($callable, '@') && (list($controller, $action) = explode('@', $callable))
+                    && class_exists($controller) && is_a($controller, \Illuminate\Routing\Controller::class, true)) {
+                    $endpoint->callback = [$controller, $action];
+                }
+            } else if (isset($route->action['uses']) && is_callable($route->action['uses'])) {
+                $endpoint->callback = $route->action['uses'];
             }
             if (substr_count($pattern, '/') > 1) {
                 $endpoint->tags[] = substr($pattern, 1, strpos($pattern, '/', 1) - 1);
@@ -84,5 +86,12 @@ class LaravelCodeScraper extends ScraperSkeleton
         return [
             FormRequest::class => LaravelFormRequestExtractor::class,
         ];
+    }
+
+    public function getClassDescribingOptions(): array
+    {
+        return array_merge(parent::getClassDescribingOptions(), [
+            \Symfony\Component\HttpFoundation\Response::class => [],
+        ]);
     }
 }

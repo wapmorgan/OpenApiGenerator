@@ -43,11 +43,12 @@ abstract class BasicCommand extends Command
     protected function createScraper(string $scraperType, OutputInterface $output): ScraperSkeleton
     {
         $scrapers = ScraperSkeleton::getAllDefaultScrapers();
-        if (isset($scrapers[$scraperType]))
+        if (isset($scrapers[$scraperType])) {
             $scraperType = $scrapers[$scraperType];
+        }
 
         if (class_exists($scraperType)) {
-            return new $scraperType();
+            return $this->setMessagesCallbacks(new $scraperType(), $output);
         }
 
         if (!empty($scraperType) && file_exists($file = realpath(getcwd().'/'.$scraperType))) {
@@ -72,7 +73,7 @@ abstract class BasicCommand extends Command
     public function createGenerator(string $generatorType, OutputInterface $output): DefaultGenerator
     {
         if (class_exists($generatorType)) {
-            return new $generatorType();
+            return $this->setGeneratorCallbacks($output, $this->setMessagesCallbacks(new $generatorType(), $output));
         }
 
         $file = realpath(getcwd().'/'.$generatorType);
@@ -121,8 +122,9 @@ abstract class BasicCommand extends Command
             ErrorableObject::NOTICE_ERROR => ['notice_error', OutputInterface::VERBOSITY_QUIET],
         ];
 
-        if (isset($this->progressBar))
+        if (isset($this->progressBar)) {
             $this->progressBar->clear();
+        }
 
         /** @var FormatterHelper $formatter */
         $formatter = $this->getHelper('formatter');
@@ -132,8 +134,9 @@ abstract class BasicCommand extends Command
 
         $output->writeln($message, $tags[$level][1]);
 
-        if (isset($this->progressBar))
+        if (isset($this->progressBar)) {
             $this->progressBar->display();
+        }
     }
 
     /**

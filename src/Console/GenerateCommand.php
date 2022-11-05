@@ -4,7 +4,11 @@ namespace wapmorgan\OpenApiGenerator\Console;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\PathItem;
+use OpenApi\Annotations\Property;
+use OpenApi\Annotations\Schema;
 use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Helper\TableCell;
+use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -20,19 +24,23 @@ class GenerateCommand extends BasicCommand
      */
     protected static $defaultName = 'generate';
 
+    protected static $defaultDescription = 'Generates openapi configurations';
+
     public function configure()
     {
         $scrapers = array_keys(ScraperSkeleton::getAllDefaultScrapers());
-
-        $this->setDescription('Generates openapi configurations.'.PHP_EOL
-            .'  Default scrapers: '.implode(', ', $scrapers).'.')
+        $this
             ->setHelp('This command allows you to generate openapi-files for current application via user-defined scraper.')
-            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file')
-            ->addOption('generator', 'g', InputOption::VALUE_REQUIRED, 'The generator class or file', DefaultGenerator::class)
+            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file. Default scrapers: '.implode('/', $scrapers))
+//            ->addOption('generator', 'g', InputOption::VALUE_REQUIRED, 'The generator class or file', DefaultGenerator::class)
             ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
+            ->addOption('specification-title', null, InputOption::VALUE_REQUIRED, 'Title', ScraperSkeleton::$specificationTitle)
+            ->addOption('specification-description', null, InputOption::VALUE_REQUIRED, 'Description', ScraperSkeleton::$specificationDescription)
+            ->addOption('specification-version', null, InputOption::VALUE_REQUIRED, 'Version', ScraperSkeleton::$specificationVersion)
+            ->addArgument('directory', InputArgument::OPTIONAL, 'Folder to start analysis', getcwd())
             ->addArgument('output', InputArgument::OPTIONAL, 'Folder for output files (or `-- --` for output)', getcwd())
             ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Format of output: json or yaml', 'yaml')
-            ->addOption('inspect', null, InputOption::VALUE_NONE, 'Probe run')
+            ->addOption('inspect', null, InputOption::VALUE_OPTIONAL, 'Probe run - prints result of generation instead of saving to disk. Pass endpoint name to filter (with mask)', false)
         ;
     }
 
@@ -54,15 +62,16 @@ class GenerateCommand extends BasicCommand
         $scraper = $this->createScraper($scraper, $output);
         $scraper->specificationPattern = $input->getOption('specification');
 
-        $generator = $this->createGenerator($input->getOption('generator'), $output);
-        $result = $generator->generate($scraper);
+        $generator = $this->createGenerator(DefaultGenerator::class, $output);
+        $result = $generator->generate($scraper, $input->getArgument('directory'));
 
-        $is_inspect_mode = (boolean)$input->getOption('inspect');
+        $inspect_mode = $input->getOption('inspect');
 
-        if ($is_inspect_mode)
-            $this->inspect($input, $output, $result);
-        else
+        if ($inspect_mode !== false) {
+            $this->inspect($input, $output, $result, $inspect_mode);
+        } else {
             $this->generate($input, $output, $result);
+        }
 
         return 0;
     }
@@ -109,7 +118,7 @@ class GenerateCommand extends BasicCommand
      * @param array $result
      * @return int
      */
-    public function inspect(InputInterface $input, OutputInterface $output, array $result)
+    public function inspect(InputInterface $input, OutputInterface $output, array $result, ?string $inspectFilter)
     {
 
         switch (count($result)) {
@@ -117,48 +126,117 @@ class GenerateCommand extends BasicCommand
                 $output->writeln('No available specifications');
                 break;
             case 1:
-                $this->printSpecification($output, null, $result[0]);
+                $this->printSpecification($output, null, $result[0], $inspectFilter);
                 break;
             default:
                 $output->writeln('Total '.count($result).' specification(s)');
                 foreach ($result as $specification) {
-                    $this->printSpecification($output, $specification->title.' '.$specification->id, $specification);
+                    $this->printSpecification($output, $specification->title.' '.$specification->id, $specification, $inspectFilter);
                 }
                 break;
         }
         return 0;
     }
 
-    protected function printSpecification(OutputInterface $output, ?string $title, GeneratorResultSpecification $specification)
+    protected function printSpecification(
+        OutputInterface $output,
+        ?string $title,
+        GeneratorResultSpecification $specification,
+        ?string $pathFilter)
     {
         if (!empty($title)) {
             $output->writeln($title);
         }
 
-        $table = new Table($output);
-        $table->setHeaders(['path', 'method', 'descripton', 'parameters']);
+
 
         /** @var PathItem $path */
         foreach ($specification->specification->paths as $pathId => $path) {
+            if ($pathFilter !== null && fnmatch($pathFilter, $path->path) === false) {
+                continue;
+            }
             foreach (['get', 'post'] as $method) {
                 if (!isset($path->{$method}) || $path->{$method} === \OpenApi\Annotations\UNDEFINED)
                     continue;
 
+                $table = new Table($output);
+//                $table->setHeaders(['path', 'method', 'descripton', 'parameters']);
+
                 /** @var Operation $path_method */
                 $path_method = $path->{$method};
+                $table->setHeaders([
+                    $method,
+                    $path->path,
+                    $path_method->summary !== \OpenApi\Annotations\UNDEFINED
+                        ? mb_substr($path_method->summary, 0, 50)
+                        : null
+                ]);
 
-                $table->addRow([
-                                   $path->path,
-                                   $method,
-                                   $path_method->summary !== \OpenApi\Annotations\UNDEFINED
-                                       ? mb_substr($path_method->summary, 0, 10)
-                                       : null,
-                                   implode(', ', array_map(function (Parameter $param) {
-                                       return $param->name;
-                                   }, $path_method->parameters)),
-                               ]);
+                if (
+                    $path_method->parameters !== \OpenApi\Annotations\UNDEFINED
+                    && count($path_method->parameters) > 0
+                ) {
+                    $table->addRow(new TableSeparator());
+                    $table->addRow([new TableCell('Parameters (' . count($path_method->parameters) . ')', ['colspan' => 3])]);
+                    /** @var Parameter $path_parameter */
+                    foreach ($path_method->parameters as $path_parameter) {
+                        $table->addRow([
+                            $path_parameter->schema !== \OpenApi\Annotations\UNDEFINED ? $path_parameter->schema->type : null,
+                            $path_parameter->name,
+                            $path_parameter->description !== \OpenApi\Annotations\UNDEFINED ? $path_parameter->description : null,
+                        ]);
+                    }
+                }
+
+                if (
+                    $path_method->responses !== \OpenApi\Annotations\UNDEFINED
+                    && isset($path_method->responses[0]->content[0])
+                    && $path_method->responses[0]->content[0]->schema !== \OpenApi\Annotations\UNDEFINED
+                    && !empty($result = $this->compressSchema($path_method->responses[0]->content[0]->schema))
+                ) {
+                    $table->addRow(new TableSeparator());
+                    if (is_scalar($result)) {
+                        $table->addRow(['Result', $result, null]);
+                    } else {
+                        $table->addRow([new TableCell('Result', ['colspan' => 3])]);
+                        $this->appendTableWithSchema($table, $result);
+                    }
+                }
+
+                $table->render();
             }
         }
-        $table->render();
+    }
+
+    protected function appendTableWithSchema(Table $table, array $schema, int $level = 0)
+    {
+        foreach ($schema as $name => $value) {
+            if (is_scalar($value)) {
+                $table->addRow([str_repeat('  ', $level) . $name, $value]);
+            } else {
+                $table->addRow([str_repeat('  ', $level) . $name . ':']);
+                $this->appendTableWithSchema($table, $value, $level + 1);
+            }
+        }
+    }
+
+    protected function compressSchema(Schema $schema)
+    {
+        switch ($schema->type) {
+            case 'array':
+                return ['array of' => $this->compressSchema($schema->items)];
+
+            case 'object':
+                $nested = [];
+                if ($schema->properties !== \OpenApi\Annotations\UNDEFINED) {
+                    foreach ($schema->properties as $property) {
+                        $nested[$property->property] = $this->compressSchema($property->schema);
+                    }
+                }
+                return $nested;
+
+            default:
+                return $schema->type;
+        }
     }
 }

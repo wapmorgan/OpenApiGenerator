@@ -465,8 +465,16 @@ class TypeDescriber
 
         foreach ($type_specification_variants as $subtypeSpecification) {
             $sub_type_schemas[] = $this->generateSchemaForType(
-                $declaringClass, $subtypeSpecification, $defaultValue, $isNullableType, $schemaType, $variantType);
-            if ($kindOfType === null || $kindOfType < $variantType) $kindOfType = $variantType;
+                $declaringClass,
+                $subtypeSpecification,
+                $defaultValue,
+                $isNullableType,
+                $schemaType,
+                $variantType
+            );
+            if ($kindOfType === null || $kindOfType < $variantType) {
+                $kindOfType = $variantType;
+            }
         }
 
         if ($schemaType !== null && $schemaType !== Schema::class) {

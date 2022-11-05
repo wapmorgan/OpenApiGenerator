@@ -145,19 +145,21 @@ class PathDescriber
     }
 
     /**
-     * @param ReflectionMethod $actionReflection
+     * @param ReflectionFunctionAbstract $actionReflection
      * @param DocBlock|null $docBlock
      * @param PathResultWrapper|null $pathResultWrapper
      * @return array
      * @throws ReflectionException
      */
     public function generatePathMethodResponsesFromDocBlock(
-        ReflectionMethod $actionReflection,
+        \ReflectionFunctionAbstract $actionReflection,
         ?DocBlock $docBlock,
         ?PathResultWrapper $pathResultWrapper
     ): ?array
     {
-        $declaring_class = $actionReflection->getDeclaringClass()->getName();
+        $declaring_class = $actionReflection instanceof ReflectionMethod
+            ? $actionReflection->getDeclaringClass()->getName()
+            : null;
 
         $responses_schemas = [];
         if ($docBlock !== null && $docBlock->hasTag('return')) {
@@ -362,7 +364,7 @@ class PathDescriber
      * @throws ReflectionException
      */
     public function generatePathOperationParameters(
-        ReflectionMethod $actionReflection,
+        \ReflectionFunctionAbstract $actionReflection,
         ?DocBlock $docBlock,
         bool $treatExtractedArgumentsAsBody
     ): array
@@ -371,7 +373,9 @@ class PathDescriber
         $doc_block_parameters = [];
         $parameters_enums = $parameters_examples = $parameters_formats = [];
 
-        $location = $actionReflection->getDeclaringClass()->getName().':'.$actionReflection->getName().'()';
+        $location = $actionReflection instanceof ReflectionMethod
+            ? $actionReflection->getDeclaringClass()->getName().':'.$actionReflection->getName().'()'
+            : '{Closure:' . $actionReflection->getFileName() . ':' . $actionReflection->getStartLine() . '}';
 
         // phpDoc arguments
         if ($docBlock !== null) {

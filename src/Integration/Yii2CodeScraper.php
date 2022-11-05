@@ -28,11 +28,11 @@ class Yii2CodeScraper extends ScraperSkeleton
      * @inheritDoc
      * @throws \ReflectionException
      */
-    public function scrape(): array
+    public function scrape(string $folder): array
     {
         if (!class_exists('\\Yii', false)) {
-            $directory = dirname(__FILE__, 6);
-            $this->initializeYiiAutoloader($directory);
+//            $directory = dirname(__FILE__, 6);
+            $this->initializeYiiAutoloader($folder);
         } else {
             $directory = Yii::getAlias('@app');
         }
@@ -246,9 +246,9 @@ class Yii2CodeScraper extends ScraperSkeleton
     ): Specification
     {
         $specification = new Specification();
-        $specification->title = sprintf($this->specificationTitle, $moduleId);
+        $specification->title = sprintf(static::$specificationTitle, $moduleId);
         $specification->version = $moduleId;
-        $specification->description = $moduleDescription ?? sprintf($this->specificationDescription, $moduleId);
+        $specification->description = $moduleDescription ?? sprintf(static::$specificationDescription, $moduleId);
         $specification->externalDocs = $moduleDocs;
 
         foreach ($this->getServers() as $server_url => $server_description) {
@@ -507,5 +507,12 @@ class Yii2CodeScraper extends ScraperSkeleton
     ): bool
     {
         return false;
+    }
+
+    public function getClassDescribingOptions(): array
+    {
+        return array_merge(parent::getClassDescribingOptions(), [
+            \yii\db\ActiveRecord::class => [],
+        ]);
     }
 }

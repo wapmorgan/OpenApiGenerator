@@ -9,7 +9,6 @@ use wapmorgan\OpenApiGenerator\ScraperSkeleton;
 use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
-use yii\db\ActiveRecord;
 use yii\helpers\Console;
 
 use function wapmorgan\OpenApiGenerator\Integration\Yii2\count;

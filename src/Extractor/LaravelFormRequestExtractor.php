@@ -24,6 +24,9 @@ class LaravelFormRequestExtractor extends ExtractorSkeleton
                 'parameter' => $attribute,
                 'name' => $attribute,
             ]);
+            if (is_string($attribute_rules)) {
+                $attribute_rules = explode('|', $attribute_rules);
+            }
             foreach ($attribute_rules as $attribute_rule) {
                 switch ($attribute_rule) {
                     case 'required':
@@ -36,13 +39,16 @@ class LaravelFormRequestExtractor extends ExtractorSkeleton
                         $parameter->schema = new Schema(['type' => 'boolean']);
                         break;
                     case 'numeric':
+                    case 'integer':
                         $parameter->schema = new Schema(['type' => 'number']);
                         break;
                     case 'array':
                         $parameter->schema = new Schema(['type' => 'array']);
                         break;
                     default:
-                        if (!is_object($attribute_rule)) break;
+                        if (!is_object($attribute_rule)) {
+                            break;
+                        }
 
                         switch (get_class($attribute_rule)) {
                             case In::class:

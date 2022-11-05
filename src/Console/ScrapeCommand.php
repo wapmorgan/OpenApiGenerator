@@ -2,6 +2,7 @@
 namespace wapmorgan\OpenApiGenerator\Console;
 
 use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -15,15 +16,16 @@ class ScrapeCommand extends BasicCommand
      */
     protected static $defaultName = 'scrape';
 
+    protected static $defaultDescription = 'Scrapes configuration and lists all found services.';
+
     public function configure()
     {
         $scrapers = array_keys(ScraperSkeleton::getAllDefaultScrapers());
-
-        $this->setDescription('Scrapes configuration and lists all found services.'.PHP_EOL
-              .'  Default scrapers: '.implode(', ', $scrapers).'.')
+        $this
             ->setHelp('This command allows you to inspect all ready-to-scrape methods in current project.')
-            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file')
+            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file. Default scrapers: '.implode('/', $scrapers))
             ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
+            ->addArgument('directory', InputArgument::OPTIONAL, 'Folder to start analysis', getcwd())
         ;
     }
 
@@ -35,6 +37,7 @@ class ScrapeCommand extends BasicCommand
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->setUpStyles($output);
         $this->output = $output;
 
         $scraper = $input->getOption('scraper');
@@ -44,7 +47,7 @@ class ScrapeCommand extends BasicCommand
 
         $scraper = $this->createScraper($scraper, $output);
         $scraper->specificationPattern = $input->getOption('specification');
-        $scrape_result = $scraper->scrape();
+        $scrape_result = $scraper->scrape($input->getArgument('directory'));
 
         switch (count($scrape_result)) {
             case 0:
@@ -61,6 +64,18 @@ class ScrapeCommand extends BasicCommand
         }
 
         return 0;
+    }
+
+    protected function formatCallback($callback): string
+    {
+        switch (true) {
+            case is_array($callback):
+                return implode('::', $callback);
+            case is_object($callback) && $callback instanceof \Closure:
+                return '{Closure}';
+            default:
+                return 'none';
+        }
     }
 
     /**
@@ -81,7 +96,7 @@ class ScrapeCommand extends BasicCommand
             $table->addRow([
                 $endpoint->httpMethod.' '.$endpoint->id,
                 implode(', ', $endpoint->securitySchemes),
-                implode('::', $endpoint->callback),
+                $this->formatCallback($endpoint->callback),
                 is_object($endpoint->result) ? 'o:'.get_class($endpoint->result) :
                     var_export($endpoint->result, true),
             ]);

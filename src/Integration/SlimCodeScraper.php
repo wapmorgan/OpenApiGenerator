@@ -37,7 +37,7 @@ abstract class SlimCodeScraper extends ScraperSkeleton
     /**
      * @return array
      */
-    public function scrape(): array
+    public function scrape(string $folder): array
     {
         $app = $this->getApp();
         $routes = $app->getRouteCollector()->getRoutes();

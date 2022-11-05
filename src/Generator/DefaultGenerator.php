@@ -126,7 +126,7 @@ class DefaultGenerator extends ErrorableObject
      * @return GeneratorResultSpecification[]
      * @throws \ReflectionException
      */
-    public function generate(ScraperSkeleton $scraper): array
+    public function generate(ScraperSkeleton $scraper, string $sourceFolder): array
     {
         // initialize generator
         $this->applySettings($scraper->getGeneratorSettings());
@@ -136,7 +136,7 @@ class DefaultGenerator extends ErrorableObject
         $this->classDescriber->setClassDescribingOptions($scraper->getClassDescribingOptions());
 
         // get information about endpoints
-        $scrape_result = $scraper->scrape();
+        $scrape_result = $scraper->scrape($sourceFolder);
 
         $this->call($this->onStartCallback, [$scrape_result]);
 
@@ -412,8 +412,16 @@ class DefaultGenerator extends ErrorableObject
      */
     protected function generateAnnotationForPath(Endpoint $resultPath): PathItem
     {
-        $callback_class = is_object($resultPath->callback[0]) ? get_class($resultPath->callback[0]) : $resultPath->callback[0];
-        $path_reflection = ReflectionsCollection::getMethod($callback_class, $resultPath->callback[1]);
+        if (is_array($resultPath->callback) && count($resultPath->callback) === 2) {
+            $callback_class = is_object($resultPath->callback[0]) ? get_class($resultPath->callback[0]) : $resultPath->callback[0];
+            if (method_exists($callback_class, $resultPath->callback[1])) {
+                $path_reflection = ReflectionsCollection::getMethod($callback_class, $resultPath->callback[1]);
+            } else {
+                $path_reflection = new \ReflectionFunction(function () {});
+            }
+        } else if (is_object($resultPath->callback) && $resultPath->callback instanceof \Closure) {
+            $path_reflection = new \ReflectionFunction($resultPath->callback);
+        }
 
         $path_doc = $path_reflection->getDocComment();
 

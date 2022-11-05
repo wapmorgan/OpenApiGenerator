@@ -15,8 +15,9 @@ abstract class ScraperSkeleton extends ErrorableObject
     public $specificationPattern = '.+';
     public $specificationAntiPattern = false;
 
-    public string $specificationTitle = 'API';
-    public string $specificationDescription = 'API version %s';
+    public static string $specificationTitle = 'API';
+    public static string $specificationDescription = 'API version %s';
+    public static string $specificationVersion = '0.0.1';
 
     public array $servers = [
         'http://localhost:8080/' => 'Local server',
@@ -81,7 +82,7 @@ abstract class ScraperSkeleton extends ErrorableObject
      * Should return list of controllers
      * @return array
      */
-    abstract public function scrape(): array;
+    abstract public function scrape(string $folder): array;
 
     /**
      * @param string $doc
