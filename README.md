@@ -8,14 +8,14 @@ It is OpenApi configuration generator that works with origin source code.
 Main purpose of this library is to simplify OpenApi-specification generation for existing API with a lot of methods and especially automatize it to avoid manual changes. Idea by [@maxonrock](https://github.com/maxonrock).
 
 1. [Open Api generator](#openapigenerator)
-- [How it works](#how-it-works)
-- [How to use](#how-to-use)
-- [Integrations](#integrations)
+   - [How it works](#how-it-works)
+   - [How to use](#how-to-use)
+   - [Integrations](#integrations)
 2. [Extending](#extending)
-- [New scraper](#new-scraper)
-- [Settings](#settings)
-- [Limitations](#limitations)
-- [ToDo](#todo)
+   - [New scraper](#new-scraper)
+   - [Settings](#settings)
+   - [Limitations](#limitations)
+   - [ToDo](#todo)
 
 # OpenApiGenerator
 **What it does?**
@@ -38,8 +38,19 @@ More detailed process description is in [How it works document](docs/how_it_work
 Invoke console script to generate openapi for your project (with help of integrations): 
 
 For example, for yii2-project:
-- Generate specifications to files in `api_docs` folder - `./vendor/bin/openapi-generator generate --scraper yii2 ./api_docs/`.
-- Parse and compose list of endpoints - `./vendor/bin/openapi-generator scrape --scraper yii2`.
+1. Parse and compose list of endpoints -
+  ```shell
+  ./vendor/bin/openapi-generator scrape --scraper yii2 ./
+  ```
+2. Analyze files and retrieve info about endpoints
+  ```shell
+  ./vendor/bin/openapi-generator generate --scraper yii2 --inspect ./
+  ```
+3. Generate specifications to files in `api_docs` folder
+  ```shell
+  ./vendor/bin/openapi-generator generate --scraper yii2 ./ ./api_docs/
+  ```
+
 
 More detailed description is in [How to use document](docs/how_to_use.md).
 
