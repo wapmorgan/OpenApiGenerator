@@ -46,31 +46,32 @@ For example, for yii2-project:
   ```shell
   ./vendor/bin/openapi-generator generate --scraper yii2 --inspect ./
   ```
-3. Generate specifications to files in `api_docs` folder
+3. Generate specification(s) into yaml-files in `api_docs` folder
   ```shell
   ./vendor/bin/openapi-generator generate --scraper yii2 ./ ./api_docs/
   ```
-
+4. Deploy swagger with specification
+    ```shell
+    docker run -p 80:8080 -e SWAGGER_JSON=/foo/0.0.1.yaml -v $(PWD):/foo swaggerapi/swagger-ui:v4.15.2    
+    ```
 
 More detailed description is in [How to use document](docs/how_to_use.md).
 
 ## Integrations
 There's few integrations: Yii2, Laravel, Slim. Details is in [Integrations document](docs/integrations.md).
-You can write your own integration for framework or your project
+You can write your own integration for framework or your project.
 
 # Extending
 ## New scraper
 
 You use (or extend) a predefined _scraper_ (see Integrations) or create your own _scraper_ from scratch (extend `DefaultScraper`), which should return a result with list of your API endpoints. Also, your scraper should provide tags, security schemes and so on.
 
-Scraper should return list of **specifications** (for example, list of api versions) with data in each _specification_:
-- _version_ - unique ID of specification.
-- _description_ - summary of specification.
-- _externalDocs_ - URL to external docs.
+Scraper should return list of **specifications** (for example, list of api versions) with:
+- _meta_ - version/description/externalDocs - of specification.
 - _servers_ - list of servers (base urls).
-- _tags_ - list of tags with description and other properties.
+- _tags_ - list of tags with description and other properties (categories for endpoints).
 - _securitySchemes_ - list of security schemes (authorization types).
-- _endpoints_ - list of API endpoints.
+- _endpoints_ - list of API endpoints (separate callbacks).
 
 Detailed information about Scraper result: [in another document](docs/scraper_result.md).
 
