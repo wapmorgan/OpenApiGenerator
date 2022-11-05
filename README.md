@@ -24,6 +24,56 @@ It generates [OpenApi 3.0 specification files](https://swagger.io/docs/specifica
 in PHP directly from source code based on any framework or written manually, whatever. You do not need to write 
 openapi-specification manually.
 
+## Example
+
+In Laravel project, there are routes:
+```php
+Route::get('/selector/lists', [\App\Http\Controllers\SelectorController::class, 'lists']);
+Route::post('/selector/select', [\App\Http\Controllers\SelectorController::class, 'select']);
+```
+
+And the controller:
+```php
+class SelectorController extends Controller
+{
+    /**
+     * Returns list of filters
+     * @param Request $request
+     * @return array
+     */
+    public function lists(Request $request) {
+        return [
+//            'persons' => range(1, 15),
+            'persons' => array_keys(Menu::$personsList),
+            'tastes' => Menu::$tastes,
+            'meat' => Menu::$meat,
+            'pizzas' => Menu::$pizzas,
+        ];
+    }
+
+    /**
+     * Searches pizzas by criterias
+     * @param \App\Http\Requests\SelectPizzas $request
+     * @return int[]
+     */
+    public function select(\App\Http\Requests\SelectPizzas $request) {
+        $validated = $request->validated();
+
+        $selector = new Selector();
+        $pizzas = $selector->select(
+            $validated['city'], $validated['persons'],
+            $validated['tastes'] ?? null, $validated['meat'] ?? null,
+            $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
+
+        return $pizzas;
+    }
+    
+   //...
+}
+```
+
+Result of generation just from code will be two endpoints with description and arguments for `select`.
+
 ## How it works
 
 1. **Scraper** collects info about specifications (tags, security schemes and servers, lists all endpoints) and provides settings for Generator. Scraper is project- and framework-dependent.
