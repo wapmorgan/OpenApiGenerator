@@ -8,6 +8,7 @@ It is OpenApi configuration generator that works with origin source code.
 Main purpose of this library is to simplify OpenApi-specification generation for existing API with a lot of methods and especially automatize it to avoid manual changes. Idea by [@maxonrock](https://github.com/maxonrock).
 
 1. [Open Api generator](#openapigenerator)
+   - [Example](#example)
    - [How it works](#how-it-works)
    - [How to use](#how-to-use)
    - [Integrations](#integrations)
