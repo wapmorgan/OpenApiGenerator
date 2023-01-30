@@ -31,11 +31,9 @@ class Yii2CodeScraper extends ScraperSkeleton
     public function scrape(string $folder): array
     {
         if (!class_exists('\\Yii', false)) {
-//            $directory = dirname(__FILE__, 6);
             $this->initializeYiiAutoloader($folder);
-        } else {
-            $directory = Yii::getAlias('@app');
         }
+        $directory = Yii::getAlias('@app');
 
         list($total_actions, $controllers) = $this->collectActions($directory);
         $this->notice('Retrieved '
