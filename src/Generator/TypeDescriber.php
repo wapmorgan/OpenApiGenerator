@@ -350,6 +350,7 @@ class TypeDescriber
             ];
             if (defined('T_NAME_QUALIFIED')) {
                 $allowed_tokens[] = T_NAME_QUALIFIED;
+                $allowed_tokens[] = T_NAME_FULLY_QUALIFIED;
             }
         }
 
@@ -364,7 +365,9 @@ class TypeDescriber
                 $i += 2;
                 while (is_array($tokens[$i]) && in_array($tokens[$i][0], $allowed_tokens)) {
                     if ($tokens[$i][0] !== T_WHITESPACE) {
-                        $import .= $tokens[$i][1];
+                        $import .= $tokens[$i][0] === T_NAME_FULLY_QUALIFIED
+                            ? ltrim('\\', $tokens[$i][1])
+                            : $tokens[$i][1];
                     }
                     $i++;
                 }
