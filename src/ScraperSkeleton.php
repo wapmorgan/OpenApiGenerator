@@ -24,7 +24,7 @@ abstract class ScraperSkeleton extends ErrorableObject
     ];
 
     public array $defaultSecurityScheme = [];
-    public ?array $_securitySchemesCached;
+    public ?array $_securitySchemesCached = null;
 
     /**
      * @return ApiKeySecurityScheme[]
