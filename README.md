@@ -5,10 +5,10 @@ It is OpenApi configuration generator that works with origin source code.
 [![Latest Unstable Version](https://poser.pugx.org/wapmorgan/openapi-generator/v/unstable)](https://packagist.org/packages/wapmorgan/openapi-generator)
 [![License](https://poser.pugx.org/wapmorgan/openapi-generator/license)](https://packagist.org/packages/wapmorgan/openapi-generator)
 
-Main purpose of this library is to simplify OpenApi-specification generation for existing API with a lot of methods and especially automatize it to avoid manual changes. Idea by [@maxonrock](https://github.com/maxonrock).
+Main purpose of this library is to automatize generation of OpenApi-specification for existing **JSON-API** with a lot of methods. Idea by [@maxonrock](https://github.com/maxonrock).
 
 1. [Open Api generator](#openapigenerator)
-   - [Example](#example)
+   - [Laravel Example](#laravel-example)
    - [How it works](#how-it-works)
    - [How to use](#how-to-use)
    - [Integrations](#integrations)
@@ -21,67 +21,60 @@ Main purpose of this library is to simplify OpenApi-specification generation for
 # OpenApiGenerator
 **What it does?**
 
-It generates [OpenApi 3.0 specification files](https://swagger.io/docs/specification/about/) for your REST API written 
-in PHP directly from source code based on any framework or written manually, whatever. You do not need to write 
-openapi-specification manually.
+It generates [OpenApi 3.0 specification files](https://swagger.io/docs/specification/about/) for your REST JSON-based API
+written in PHP from source code directly. You **do not need** to write OpenApi-specification manually.
 
-## Example
+## Laravel Example
 
-In Laravel project, there are routes:
-```php
-Route::get('/selector/lists', [\App\Http\Controllers\SelectorController::class, 'lists']);
-Route::post('/selector/select', [\App\Http\Controllers\SelectorController::class, 'select']);
-```
+1. Routes:
+   ```php
+   Route::get('/selector/lists', [\App\Http\Controllers\SelectorController::class, 'lists']);
+   Route::post('/selector/select', [\App\Http\Controllers\SelectorController::class, 'select']);
+   ```
 
-And the controller:
-```php
-class SelectorController extends Controller
-{
-    /**
-     * Returns list of filters
-     * @param Request $request
-     * @return array
-     */
-    public function lists(Request $request) {
-        return [
-//            'persons' => range(1, 15),
-            'persons' => array_keys(Menu::$personsList),
-            'tastes' => Menu::$tastes,
-            'meat' => Menu::$meat,
-            'pizzas' => Menu::$pizzas,
-        ];
-    }
+2. One controller:
+   ```php
+       /**
+        * Returns list of filters
+        * @param Request $request
+        * @return array
+        */
+       public function lists(Request $request) {
+           return [
+   //            'persons' => range(1, 15),
+               'persons' => array_keys(Menu::$personsList),
+               'tastes' => Menu::$tastes,
+               'meat' => Menu::$meat,
+               'pizzas' => Menu::$pizzas,
+           ];
+       }
+   
+       /**
+        * Searches pizzas by criteria
+        * @param \App\Http\Requests\SelectPizzas $request
+        * @return int[]
+        */
+       public function select(\App\Http\Requests\SelectPizzas $request) {
+           $validated = $request->validated();
+           $selector = new Selector();
+           $pizzas = $selector->select(
+               $validated['city'], $validated['persons'],
+               $validated['tastes'] ?? null, $validated['meat'] ?? null,
+               $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
+   
+           return $pizzas;
+       }
+   ```
 
-    /**
-     * Searches pizzas by criterias
-     * @param \App\Http\Requests\SelectPizzas $request
-     * @return int[]
-     */
-    public function select(\App\Http\Requests\SelectPizzas $request) {
-        $validated = $request->validated();
-
-        $selector = new Selector();
-        $pizzas = $selector->select(
-            $validated['city'], $validated['persons'],
-            $validated['tastes'] ?? null, $validated['meat'] ?? null,
-            $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
-
-        return $pizzas;
-    }
-    
-   //...
-}
-```
-
-Result of generation just from code will be two endpoints with description and arguments for `select`.
+3. **Result of generation from code**: two endpoints with description and arguments for `select`.
 
 ## How it works
 
-1. **Scraper** collects info about specifications (tags, security schemes and servers, lists all endpoints) and provides settings for Generator. Scraper is project- and framework-dependent.
+1. **Scraper** collects info about API (tags, security schemes and servers, all endpoints) and contains settings for Generator. Scraper is framework-dependent.
 2. **Generator** fulfills openapi-specification with endpoints information by analyzing source code:
     - summary and description of actions
     - parameters and result of actions
-   Generator is common for all integrations. It just receives information from Scraper and analyzes code by Scraper rules.
+   Generator is common. It just receives information from Scraper and analyzes code by Scraper rules.
 
 More detailed process description is in [How it works document](docs/how_it_works.md).
 
@@ -89,22 +82,22 @@ More detailed process description is in [How it works document](docs/how_it_work
 Invoke console script to generate openapi for your project (with help of integrations): 
 
 For example, for yii2-project:
-1. Parse and compose list of endpoints -
-  ```shell
-  ./vendor/bin/openapi-generator scrape --scraper yii2 ./
-  ```
-2. Analyze files and retrieve info about endpoints
-  ```shell
-  ./vendor/bin/openapi-generator generate --scraper yii2 --inspect ./
-  ```
-3. Generate specification(s) into yaml-files in `api_docs` folder
-  ```shell
-  ./vendor/bin/openapi-generator generate --scraper yii2 ./ ./api_docs/
-  ```
-4. Deploy swagger with specification
-  ```shell
-    docker run -p 80:8080 -e SWAGGER_JSON=/foo/0.0.1.yaml -v $(PWD):/foo swaggerapi/swagger-ui:v4.15.2    
-  ```
+1. Run parser on project to analyze files and retrieve info about endpoints
+   ```shell
+   ./vendor/bin/openapi-generator scrape --scraper yii2 ./
+   # And more deeper scan
+   ./vendor/bin/openapi-generator generate --scraper yii2 --inspect ./
+   ```
+2. Generate specification(s) into yaml-files in `api_docs` folder by **specification_name.yml**
+   ```shell
+   ./vendor/bin/openapi-generator generate --scraper yii2 ./ ./api_docs/
+   # Or with your own scraper (child of one of basic scrapers)
+   ./vendor/bin/openapi-generator generate --scraper components/api/OpenApiScraper.php ./ ./api_docs/
+   ```
+3. Deploy swagger with specification (e.g. _api_docs/main.yml_)
+   ```shell
+    docker run -p 80:8080 -e SWAGGER_JSON=./apis/main.yaml -v $(PWD):/usr/share/nginx/html/apis/ swaggerapi/swagger-ui:v4.15.2    
+   ```
 
 More detailed description is in [How to use document](docs/how_to_use.md).
 
@@ -153,6 +146,7 @@ By default, they all are disabled.
 - [x] Support for body parameters (when parameters are complex objects) - partially.
 - [ ] Support for few responses (with different HTTP codes).
 - [ ] Extracting class types into separate components (into openapi components).
+- [ ] Support for other request/response types besides JSON
 - [x] Add `@paramFormat` for specifying parameter format - partially.
 - [ ] Support for dynamic action arguments in dynamic model
 - [ ] Switch 3.0/3.1 (https://www.openapis.org/blog/2021/02/16/migrating-from-openapi-3-0-to-3-1-0)
