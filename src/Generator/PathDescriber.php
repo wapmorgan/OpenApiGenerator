@@ -500,6 +500,7 @@ class PathDescriber
      * @param ReflectionMethod $actionReflection
      * @param DocBlock|null $docBlock
      * @return RequestBody|null
+     * @throws ReflectionException
      */
     public function generatePathOperationBody(
         ReflectionMethod $actionReflection,
@@ -514,7 +515,8 @@ class PathDescriber
         }
 
         return new RequestBody([
-            'required' => true,
+            // request body is not required if body schema has no required fields
+            'required' => !($schema->required === \OpenApi\Generator::UNDEFINED),
             'content' => [
                 new MediaType([
                     'mediaType' => 'application/json',
@@ -662,6 +664,7 @@ class PathDescriber
     /**
      * @param DocBlock|null $docBlock
      * @param ReflectionMethod $actionReflection
+     * @param bool $treatExtractedArgumentsAsBody
      * @return null
      * @throws ReflectionException
      */

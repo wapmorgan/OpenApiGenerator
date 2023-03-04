@@ -419,7 +419,7 @@ class DefaultGenerator extends ErrorableObject
             } else {
                 $path_reflection = new \ReflectionFunction(function () {});
             }
-        } else if (is_object($resultPath->callback) && $resultPath->callback instanceof \Closure) {
+        } else if ($resultPath->callback instanceof \Closure) {
             $path_reflection = new \ReflectionFunction($resultPath->callback);
         }
 
