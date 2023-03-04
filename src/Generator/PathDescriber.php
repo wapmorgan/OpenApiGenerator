@@ -9,6 +9,7 @@ use OpenApi\Annotations\Property;
 use OpenApi\Annotations\RequestBody;
 use OpenApi\Annotations\Response;
 use OpenApi\Annotations\Schema;
+use OpenApi\Generator;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tag;
 use phpDocumentor\Reflection\DocBlock\Tags\InvalidTag;
@@ -16,6 +17,7 @@ use phpDocumentor\Reflection\DocBlock\Tags\Link;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
 use ReflectionException;
+use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
@@ -152,7 +154,7 @@ class PathDescriber
      * @throws ReflectionException
      */
     public function generatePathMethodResponsesFromDocBlock(
-        \ReflectionFunctionAbstract $actionReflection,
+        ReflectionFunctionAbstract $actionReflection,
         ?DocBlock $docBlock,
         ?PathResultWrapper $pathResultWrapper
     ): ?array
@@ -364,7 +366,7 @@ class PathDescriber
      * @throws ReflectionException
      */
     public function generatePathOperationParameters(
-        \ReflectionFunctionAbstract $actionReflection,
+        ReflectionFunctionAbstract $actionReflection,
         ?DocBlock $docBlock,
         bool $treatExtractedArgumentsAsBody
     ): array
@@ -516,7 +518,7 @@ class PathDescriber
 
         return new RequestBody([
             // request body is not required if body schema has no required fields
-            'required' => !($schema->required === \OpenApi\Generator::UNDEFINED),
+            'required' => !($schema->required === Generator::UNDEFINED),
             'content' => [
                 new MediaType([
                     'mediaType' => 'application/json',
@@ -747,7 +749,7 @@ class PathDescriber
             return null;
 
         if (empty($schema->required))
-            $schema->required = \OpenApi\Generator::UNDEFINED;
+            $schema->required = Generator::UNDEFINED;
 
         return $schema;
     }

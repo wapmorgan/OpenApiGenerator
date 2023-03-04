@@ -224,18 +224,31 @@ class ClassDescriber
     ): PropertyAnnotation
     {
         // if type is a link to class/object property's value
-        if (property_exists($declaringClass, trim($propertyTag->getType(), '\\[]'))) {
-            $type = trim($propertyTag->getType(), '\\');
+        $property_type = trim('\\', $propertyTag->getType());
+        if (strpos($property_type, '|') !== false) {
+            $property_few_types = explode('|', $property_type);
+            if (count($property_few_types) > 2) {
+                // it is not possible
+            } else if (count($property_few_types) === 2) {
+                if (in_array('null', $property_few_types)) {
+                    unset($property_few_types[array_search('null', $property_few_types)]);
+                    $property_type = current($property_few_types);
+                    $isNullable = true;
+                }
+            }
+        }
+
+        if (property_exists($declaringClass, trim($propertyTag->getType(), '[]'))) {
             $iterable = false;
-            if (substr($type, -2) == '[]') {
-                $type = substr($type, 0, -2);
+            if (substr($property_type, -2) == '[]') {
+                $property_type = substr($property_type, 0, -2);
                 $iterable = true;
             }
 
             if ($object !== null) {
                 /** @var PropertyAnnotation $property */
                 $property = $this->generator->getTypeDescriber()->generateSchemaForObject(
-                    $object->{$type},
+                    $object->{$property_type},
                     $iterable,
                     PropertyAnnotation::class);
             } else {
@@ -243,7 +256,7 @@ class ClassDescriber
                 /** @var PropertyAnnotation $property */
                 $property = $this->generator->getTypeDescriber()->generateSchemaForType(
                     $declaringClass,
-                    $properties[$type].($iterable ? '[]' : null),
+                    $properties[$property_type].($iterable ? '[]' : null),
                     null,
                     $isNullable,
                     PropertyAnnotation::class);
