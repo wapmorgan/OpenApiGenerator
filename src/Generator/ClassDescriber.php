@@ -316,12 +316,12 @@ class ClassDescriber
         }
 
         // type
-        if (isset($doc_block) && $doc_block->getType() !== null) {
+        if ((isset($doc_block) && $doc_block->getType() !== null) || ($propertyReflection->getType() !== null)) {
             $isNullable = false;
             /** @var PropertyAnnotation $property */
             $property = $this->generator->getTypeDescriber()->generateSchemaForType(
                 $propertyReflection->getDeclaringClass()->getName(),
-                $doc_block->getType(),
+                (isset($doc_block) && $doc_block->getType() !== null) ? $doc_block->getType() : (string)$propertyReflection->getType(),
                 null,
                 $isNullable,
                 PropertyAnnotation::class);
