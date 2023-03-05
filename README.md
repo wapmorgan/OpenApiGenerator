@@ -30,43 +30,136 @@ written in PHP from source code directly. You **do not need** to write OpenApi-s
    ```php
    Route::get('/selector/lists', [\App\Http\Controllers\SelectorController::class, 'lists']);
    Route::post('/selector/select', [\App\Http\Controllers\SelectorController::class, 'select']);
+   Route::get('/selector/goTo', [\App\Http\Controllers\SelectorController::class, 'goTo']);
+   Route::get('/geo/detect', [\App\Http\Controllers\GeoController::class, 'detect']);
+   Route::get('/geo/select', [\App\Http\Controllers\GeoController::class, 'select']);
    ```
 
 2. One controller:
    ```php
-       /**
-        * Returns list of filters
-        * @param Request $request
-        * @return array
-        */
-       public function lists(Request $request) {
-           return [
-   //            'persons' => range(1, 15),
-               'persons' => array_keys(Menu::$personsList),
-               'tastes' => Menu::$tastes,
-               'meat' => Menu::$meat,
-               'pizzas' => Menu::$pizzas,
-           ];
-       }
+   /**
+     * Returns lists of filters
+     * @param Request $request
+     * @return ListsResponse
+     */
+    public function lists(Request $request) {
+        return new ListsResponse([
+            //            'persons' => range(1, 15),
+            'persons' => array_keys(Menu::$personsList),
+            'tastes' => Menu::$tastes,
+            'meat' => Menu::$meat,
+            'pizzas' => Menu::$pizzas,
+        ]);
+    }
+
+    /**
+     * Makes a selection of pizzas according to criteria
+     * @param \App\Http\Requests\SelectPizzas $request
+     * @return PizzaListItem[]
+     */
+    public function select(\App\Http\Requests\SelectPizzas $request) {
+        $validated = $request->validated();
+
+        return (new Selector())->select(
+            $validated['city'], $validated['persons'],
+            $validated['tastes'] ?? null, $validated['meat'] ?? null,
+            $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
+    }
+   ```
    
-       /**
-        * Searches pizzas by criteria
-        * @param \App\Http\Requests\SelectPizzas $request
-        * @return int[]
-        */
-       public function select(\App\Http\Requests\SelectPizzas $request) {
-           $validated = $request->validated();
-           $selector = new Selector();
-           $pizzas = $selector->select(
-               $validated['city'], $validated['persons'],
-               $validated['tastes'] ?? null, $validated['meat'] ?? null,
-               $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
+3. One request and two responses:
+   ```php
+   class SelectPizzas extends FormRequest {
+        public function rules()
+        { 
+            // ...
+            return array_merge([
+               'city' => ['required', 'string'],
+               'persons' => ['required', Rule::in(array_keys(Menu::$personsList))],
+               'vegetarian' => ['boolean'],
+               'maxPrice' => ['numeric'],
+               'pizzas' => ['array', Rule::in(array_keys(Menu::$pizzas))],
+            ], $tastes, $meat);
+        } 
+   }
+
+   class ListsResponse extends BaseResponse {
+        /** @var string[] */
+        public $persons;
+        /** @var string[] */
+        public $tastes;
+        /** @var string[] */
+        public $meat;
+        /** @var string[] */
+        public $pizzas;
+   }
    
-           return $pizzas;
-       }
+   class PizzaListItem extends BaseResponse {
+        public string $pizzeria;
+        public string $id;
+        public int $sizeId;
+        public string $name;
+        public float $size;
+        public array $tastes;
+        public array $meat;
+        public float $price;
+        public float $pizzaArea;
+        public float $pizzaCmPrice;
+        public string $thumbnail;
+        public array $ingredients;
+        public int $dough;
+   }
    ```
 
-3. **Result of generation from code**: two endpoints with description and arguments for `select`.
+4. **Result of generation from code**: two endpoints with description and arguments for `select`.
+
+   ```
+   ┌─────────┬─────────────────┬──────────────────────────┐
+   │ get     │ /selector/lists │ Returns lists of filters │
+   ├─────────┼─────────────────┼──────────────────────────┤
+   │ Result (4)                                           │
+   │ persons │ array of string │                          │
+   │ tastes  │ array of string │                          │
+   │ meat    │ array of string │                          │
+   │ pizzas  │ array of string │                          │
+   └─────────┴─────────────────┴──────────────────────────┘
+   ┌──────────────────┬──────────────────┬───────────────────────────────────────────────────┐
+   │ post             │ /selector/select │ Makes a selection of pizzas according to criteria │
+   ├──────────────────┼──────────────────┼───────────────────────────────────────────────────┤
+   │ Parameters (15)                                                                         │
+   │ string           │ city             │                                                   │
+   │ string           │ persons          │                                                   │
+   │ boolean          │ vegetarian       │                                                   │
+   │ number           │ maxPrice         │                                                   │
+   │ array            │ pizzas           │                                                   │
+   │ boolean          │ tastes.cheese    │                                                   │
+   │ boolean          │ tastes.sausage   │                                                   │
+   │ boolean          │ tastes.spicy     │                                                   │
+   │ boolean          │ tastes.mushroom  │                                                   │
+   │ boolean          │ tastes.exotic    │                                                   │
+   │ boolean          │ meat.chicken     │                                                   │
+   │ boolean          │ meat.pork        │                                                   │
+   │ boolean          │ meat.beef        │                                                   │
+   │ boolean          │ meat.fish        │                                                   │
+   │ boolean          │ meat.sauce_meat  │                                                   │
+   ├──────────────────┼──────────────────┼───────────────────────────────────────────────────┤
+   │ Result (14)                                                                             │
+   │                  │ array of         │                                                   │
+   │ [*].pizzeria     │ string           │                                                   │
+   │ [*].id           │ string           │                                                   │
+   │ [*].sizeId       │ integer          │                                                   │
+   │ [*].name         │ string           │                                                   │
+   │ [*].size         │ integer          │                                                   │
+   │ [*].tastes       │ array of         │                                                   │
+   │ [*].meat         │ array of         │                                                   │
+   │ [*].price        │ integer          │                                                   │
+   │ [*].pizzaArea    │ integer          │                                                   │
+   │ [*].pizzaCmPrice │ integer          │                                                   │
+   │ [*].thumbnail    │ string           │                                                   │
+   │ [*].ingredients  │ array of         │                                                   │
+   │ [*].dough        │ integer          │                                                   │
+   └──────────────────┴──────────────────┴───────────────────────────────────────────────────┘
+   ```
 
 ## How it works
 
