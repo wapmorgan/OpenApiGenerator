@@ -31,7 +31,8 @@ class PathResultWrapper extends InitableObject
         return new Schema([
             'properties' => [
                 $property,
-            ]
+            ],
+            'type' => 'object',
         ]);
     }
 }

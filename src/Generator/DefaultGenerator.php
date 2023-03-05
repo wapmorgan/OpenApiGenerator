@@ -473,7 +473,7 @@ class DefaultGenerator extends ErrorableObject
         if (!isset($resultPath->result)) {
             $path_response_schemas = $this->pathDescriber->generatePathMethodResponsesFromDocBlock($path_reflection, $doc_block, $resultPath->resultWrapper);
         } else { // generate responses from passed $pathResult
-            $path_response_schemas = $this->pathDescriber->generationPathMethodResponseFromType($path_reflection, $resultPath->result, $resultPath->resultWrapper);
+            $path_response_schemas = $this->pathDescriber->generatePathMethodResponseFromType($path_reflection, $resultPath->result, $resultPath->resultWrapper);
         }
 
         if (!empty($path_response_schemas)) {

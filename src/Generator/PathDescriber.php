@@ -197,7 +197,7 @@ class PathDescriber
      * @param PathResultWrapper|null $pathResultWrapper
      * @throws ReflectionException
      */
-    public function generationPathMethodResponseFromType(
+    public function generatePathMethodResponseFromType(
         ReflectionMethod $actionReflection,
         $type,
         ?PathResultWrapper $pathResultWrapper

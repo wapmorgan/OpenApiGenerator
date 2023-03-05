@@ -224,7 +224,7 @@ class ClassDescriber
     ): PropertyAnnotation
     {
         // if type is a link to class/object property's value
-        $property_type = trim('\\', $propertyTag->getType());
+        $property_type = trim($propertyTag->getType(), '\\');
         if (strpos($property_type, '|') !== false) {
             $property_few_types = explode('|', $property_type);
             if (count($property_few_types) > 2) {
@@ -238,7 +238,7 @@ class ClassDescriber
             }
         }
 
-        if (property_exists($declaringClass, trim($propertyTag->getType(), '[]'))) {
+        if (property_exists($declaringClass, trim($property_type, '[]'))) {
             $iterable = false;
             if (substr($property_type, -2) == '[]') {
                 $property_type = substr($property_type, 0, -2);
@@ -265,7 +265,7 @@ class ClassDescriber
             /** @var PropertyAnnotation $property */
             $property = $this->generator->getTypeDescriber()->generateSchemaForType(
                 $declaringClass,
-                $propertyTag->getType(),
+                $property_type,
                 null,
                 $isNullable,
                 PropertyAnnotation::class);
