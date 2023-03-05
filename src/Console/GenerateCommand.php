@@ -259,14 +259,15 @@ class GenerateCommand extends BasicCommand
     {
         switch ($schema->type) {
             case 'array':
+                $array_name = $schema instanceof Property ? $schema->property : null;
                 if ($schema->items === null) {
-                    $tableRows[] = [$prefix . $schema->property, 'array', $schema->description];
+                    $tableRows[] = [$prefix . $array_name, 'array', $schema->description];
                 } else {
                     if ($this->isScalarSchema($schema->items)) {
-                        $tableRows[] = [$prefix . $schema->property, 'array of ' . $this->getScalarTitle($schema->items), $schema->description];
+                        $tableRows[] = [$prefix . $array_name, 'array of ' . $this->getScalarTitle($schema->items), $schema->description];
                     } else {
-                        $tableRows[] = [$prefix . $schema->property, 'array of', $schema->description];
-                        $this->compressSchema($schema->items, $tableRows, $prefix . $schema->property . '[*].');
+                        $tableRows[] = [$prefix . $array_name, 'array of', $schema->description];
+                        $this->compressSchema($schema->items, $tableRows, $prefix . $array_name . '[*].');
                     }
                 }
                 break;
@@ -293,7 +294,11 @@ class GenerateCommand extends BasicCommand
                         $this->compressSchema($schemaListItem, $tableRows, $prefix . ($schema instanceof Property ? $schema->property . '.' : null));
                     }
                 } else if ($schema->type !== Generator::UNDEFINED) {
-                    $tableRows[] = [$prefix . $schema->property, $schema->type, $schema->description];
+                    $tableRows[] = [
+                        $prefix . $schema->property,
+                        ($schema->nullable === true ? '?' : null) . $schema->type,
+                        $schema->description
+                    ];
                 } else if ($schema->type === Generator::UNDEFINED) {
                     return false;
                 }
