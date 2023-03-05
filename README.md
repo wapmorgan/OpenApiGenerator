@@ -27,6 +27,7 @@ written in PHP from source code directly. You **do not need** to write OpenApi-s
 ## Laravel Example
 
 1. Routes:
+
    ```php
    Route::get('/selector/lists', [\App\Http\Controllers\SelectorController::class, 'lists']);
    Route::post('/selector/select', [\App\Http\Controllers\SelectorController::class, 'select']);
@@ -36,38 +37,40 @@ written in PHP from source code directly. You **do not need** to write OpenApi-s
    ```
 
 2. One controller:
+
    ```php
    /**
-     * Returns lists of filters
-     * @param Request $request
-     * @return ListsResponse
-     */
-    public function lists(Request $request) {
-        return new ListsResponse([
-            //            'persons' => range(1, 15),
-            'persons' => array_keys(Menu::$personsList),
-            'tastes' => Menu::$tastes,
-            'meat' => Menu::$meat,
-            'pizzas' => Menu::$pizzas,
-        ]);
-    }
-
-    /**
-     * Makes a selection of pizzas according to criteria
-     * @param \App\Http\Requests\SelectPizzas $request
-     * @return PizzaListItem[]
-     */
-    public function select(\App\Http\Requests\SelectPizzas $request) {
-        $validated = $request->validated();
-
-        return (new Selector())->select(
-            $validated['city'], $validated['persons'],
-            $validated['tastes'] ?? null, $validated['meat'] ?? null,
-            $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
-    }
+   * Returns lists of filters
+   * @param Request $request
+   * @return ListsResponse
+   */
+   public function lists(Request $request) {
+     return new ListsResponse([
+         //            'persons' => range(1, 15),
+         'persons' => array_keys(Menu::$personsList),
+         'tastes' => Menu::$tastes,
+         'meat' => Menu::$meat,
+         'pizzas' => Menu::$pizzas,
+     ]);
+   }
+   
+   /**
+   * Makes a selection of pizzas according to criteria
+   * @param \App\Http\Requests\SelectPizzas $request
+   * @return PizzaListItem[]
+   */
+   public function select(\App\Http\Requests\SelectPizzas $request) {
+     $validated = $request->validated();
+   
+     return (new Selector())->select(
+         $validated['city'], $validated['persons'],
+         $validated['tastes'] ?? null, $validated['meat'] ?? null,
+         $validated['vegetarian'] ?? false, $validated['maxPrice'] ?? null);
+   }
    ```
    
 3. One request and two responses:
+
    ```php
    class SelectPizzas extends FormRequest {
         public function rules()
