@@ -157,8 +157,9 @@ class GenerateCommand extends BasicCommand
                 continue;
             }
             foreach (['get', 'post'] as $method) {
-                if (!isset($path->{$method}) || $path->{$method} === \OpenApi\Annotations\UNDEFINED)
+                if (!isset($path->{$method}) || $path->{$method} === \OpenApi\Annotations\UNDEFINED) {
                     continue;
+                }
 
                 $table = new Table($output);
                 $table->setStyle('box');
@@ -170,15 +171,30 @@ class GenerateCommand extends BasicCommand
                     $method,
                     $path->path,
                     $path_method->summary !== \OpenApi\Annotations\UNDEFINED
-                    ? mb_substr($path_method->summary, 0, 50)
-                    : null
+                        ? $path_method->summary
+                        : null
                 ]);
+                $path_description = $path->{$method}->description !== \OpenApi\Annotations\UNDEFINED
+                    ? trim($path->{$method}->description)
+                    : null;
+                if (!empty($path_description)) {
+                    $table->addRow([new TableCell($path->{$method}->description, ['colspan' => 3])]);
+                }
+
+                if (
+                    !empty($path_description)
+                    && ($path_method->parameters !== \OpenApi\Annotations\UNDEFINED
+                        && count($path_method->parameters) > 0)
+                ) {
+                    $table->addRow(new TableSeparator());
+                }
+
+//                $path->post->security
 
                 if (
                     $path_method->parameters !== \OpenApi\Annotations\UNDEFINED
                     && count($path_method->parameters) > 0
                 ) {
-//                    $table->addRow(new TableSeparator());
                     $table->addRow([new TableCell('Parameters (' . count($path_method->parameters) . ')', ['colspan' => 3])]);
                     /** @var Parameter $path_parameter */
                     foreach ($path_method->parameters as $path_parameter) {
@@ -197,8 +213,12 @@ class GenerateCommand extends BasicCommand
                     && $path_method->responses[0]->content[0]->schema !== \OpenApi\Annotations\UNDEFINED
                     && $this->compressSchema($path_method->responses[0]->content[0]->schema, $resultTableRows)
                 ) {
-                    $table->addRow(new TableSeparator());
-                    $table->addRow([new TableCell('Result', ['colspan' => 3])]);
+                    if (!empty($path_description)
+                        || ($path_method->parameters !== \OpenApi\Annotations\UNDEFINED
+                            && count($path_method->parameters) > 0)) {
+                        $table->addRow(new TableSeparator());
+                    }
+                    $table->addRow([new TableCell('Result (' . count($resultTableRows) . ')', ['colspan' => 3])]);
                     $table->addRows($resultTableRows);
                 }
 
@@ -240,7 +260,7 @@ class GenerateCommand extends BasicCommand
         switch ($schema->type) {
             case 'array':
                 if ($schema->items === null) {
-                    $tableRows[] = [$prefix . $schema->property, 'array'];
+                    $tableRows[] = [$prefix . $schema->property, 'array', $schema->description];
                 } else {
                     if ($this->isScalarSchema($schema->items)) {
                         $tableRows[] = [$prefix . $schema->property, 'array of ' . $this->getScalarTitle($schema->items), $schema->description];
@@ -252,6 +272,13 @@ class GenerateCommand extends BasicCommand
                 break;
 
             case 'object':
+                if ($schema instanceof Property) {
+                    $tableRows[] = [
+                        $prefix . $schema->property,
+                        ($schema->nullable === true ? '?' : null) . 'object',
+                        ($schema->description !== Generator::UNDEFINED ? $schema->description : null)
+                    ];
+                }
                 if ($schema->properties !== Generator::UNDEFINED) {
                     foreach ($schema->properties as $property) {
                         $this->compressSchema($property, $tableRows, $prefix . ($schema instanceof Property ? $schema->property . '.' : null));
