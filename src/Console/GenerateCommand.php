@@ -190,19 +190,16 @@ class GenerateCommand extends BasicCommand
                     }
                 }
 
+                $resultTableRows = [];
                 if (
                     $path_method->responses !== \OpenApi\Annotations\UNDEFINED
                     && isset($path_method->responses[0]->content[0])
                     && $path_method->responses[0]->content[0]->schema !== \OpenApi\Annotations\UNDEFINED
-                    && !empty($result = $this->compressSchema($path_method->responses[0]->content[0]->schema, $resultTableRows))
+                    && $this->compressSchema($path_method->responses[0]->content[0]->schema, $resultTableRows)
                 ) {
                     $table->addRow(new TableSeparator());
-//                    if (is_scalar($result)) {
-//                        $table->addRow(['Result', $result, null]);
-//                    } else {
                     $table->addRow([new TableCell('Result', ['colspan' => 3])]);
-                    $this->appendTableWithSchema($table, $resultTableRows);
-//                    }
+                    $table->addRows($resultTableRows);
                 }
 
                 $table->render();
@@ -222,18 +219,42 @@ class GenerateCommand extends BasicCommand
         }
     }
 
-    protected function compressSchema(Schema $schema, &$tableRows = [], ?string $prefixName = null)
+    protected function isScalarSchema(Schema $schema)
     {
-        $prefix = !empty($prefixName) ? $prefixName . '->' : null;
+        switch ($schema->type) {
+            case 'object':
+            case 'array':
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    protected function getScalarTitle(Schema $schema)
+    {
+        return $schema->type;
+    }
+
+    protected function compressSchema(Schema $schema, &$tableRows = [], ?string $prefix = null)
+    {
         switch ($schema->type) {
             case 'array':
-                return ['array of' => $this->compressSchema($schema->items)];
+                if ($schema->items === null) {
+                    $tableRows[] = [$prefix . $schema->property, 'array'];
+                } else {
+                    if ($this->isScalarSchema($schema->items)) {
+                        $tableRows[] = [$prefix . $schema->property, 'array of ' . $this->getScalarTitle($schema->items), $schema->description];
+                    } else {
+                        $tableRows[] = [$prefix . $schema->property, 'array of', $schema->description];
+                        $this->compressSchema($schema->items, $tableRows, $prefix . $schema->property . '[*].');
+                    }
+                }
+                break;
 
             case 'object':
-                $tableRows = [];
                 if ($schema->properties !== Generator::UNDEFINED) {
                     foreach ($schema->properties as $property) {
-                        $tableRows[$prefix . $property->property] = $this->compressSchema($property, $tableRows);
+                        $this->compressSchema($property, $tableRows, $prefix . ($schema instanceof Property ? $schema->property . '.' : null));
                     }
                 }
                 return $tableRows;
@@ -242,10 +263,14 @@ class GenerateCommand extends BasicCommand
                 if ($schema->allOf !== Generator::UNDEFINED) {
                     /** @var Schema $schemaListItem */
                     foreach ($schema->allOf as $schemaListItem) {
-                        $this->compressSchema($schemaListItem, $tableRows);
+                        $this->compressSchema($schemaListItem, $tableRows, $prefix . ($schema instanceof Property ? $schema->property . '.' : null));
                     }
+                } else if ($schema->type !== Generator::UNDEFINED) {
+                    $tableRows[] = [$prefix . $schema->property, $schema->type, $schema->description];
+                } else if ($schema->type === Generator::UNDEFINED) {
+                    return false;
                 }
-                return $schema->type;
         }
+        return true;
     }
 }
