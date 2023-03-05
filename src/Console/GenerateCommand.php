@@ -6,6 +6,7 @@ use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\PathItem;
 use OpenApi\Annotations\Property;
 use OpenApi\Annotations\Schema;
+use OpenApi\Generator;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Helper\TableCell;
 use Symfony\Component\Console\Helper\TableSeparator;
@@ -160,6 +161,7 @@ class GenerateCommand extends BasicCommand
                     continue;
 
                 $table = new Table($output);
+                $table->setStyle('box');
 //                $table->setHeaders(['path', 'method', 'descripton', 'parameters']);
 
                 /** @var Operation $path_method */
@@ -168,15 +170,15 @@ class GenerateCommand extends BasicCommand
                     $method,
                     $path->path,
                     $path_method->summary !== \OpenApi\Annotations\UNDEFINED
-                        ? mb_substr($path_method->summary, 0, 50)
-                        : null
+                    ? mb_substr($path_method->summary, 0, 50)
+                    : null
                 ]);
 
                 if (
                     $path_method->parameters !== \OpenApi\Annotations\UNDEFINED
                     && count($path_method->parameters) > 0
                 ) {
-                    $table->addRow(new TableSeparator());
+//                    $table->addRow(new TableSeparator());
                     $table->addRow([new TableCell('Parameters (' . count($path_method->parameters) . ')', ['colspan' => 3])]);
                     /** @var Parameter $path_parameter */
                     foreach ($path_method->parameters as $path_parameter) {
@@ -192,15 +194,15 @@ class GenerateCommand extends BasicCommand
                     $path_method->responses !== \OpenApi\Annotations\UNDEFINED
                     && isset($path_method->responses[0]->content[0])
                     && $path_method->responses[0]->content[0]->schema !== \OpenApi\Annotations\UNDEFINED
-                    && !empty($result = $this->compressSchema($path_method->responses[0]->content[0]->schema))
+                    && !empty($result = $this->compressSchema($path_method->responses[0]->content[0]->schema, $resultTableRows))
                 ) {
                     $table->addRow(new TableSeparator());
-                    if (is_scalar($result)) {
-                        $table->addRow(['Result', $result, null]);
-                    } else {
-                        $table->addRow([new TableCell('Result', ['colspan' => 3])]);
-                        $this->appendTableWithSchema($table, $result);
-                    }
+//                    if (is_scalar($result)) {
+//                        $table->addRow(['Result', $result, null]);
+//                    } else {
+                    $table->addRow([new TableCell('Result', ['colspan' => 3])]);
+                    $this->appendTableWithSchema($table, $resultTableRows);
+//                    }
                 }
 
                 $table->render();
@@ -220,22 +222,29 @@ class GenerateCommand extends BasicCommand
         }
     }
 
-    protected function compressSchema(Schema $schema)
+    protected function compressSchema(Schema $schema, &$tableRows = [], ?string $prefixName = null)
     {
+        $prefix = !empty($prefixName) ? $prefixName . '->' : null;
         switch ($schema->type) {
             case 'array':
                 return ['array of' => $this->compressSchema($schema->items)];
 
             case 'object':
-                $nested = [];
-                if ($schema->properties !== \OpenApi\Annotations\UNDEFINED) {
+                $tableRows = [];
+                if ($schema->properties !== Generator::UNDEFINED) {
                     foreach ($schema->properties as $property) {
-                        $nested[$property->property] = $this->compressSchema($property->schema);
+                        $tableRows[$prefix . $property->property] = $this->compressSchema($property, $tableRows);
                     }
                 }
-                return $nested;
+                return $tableRows;
 
             default:
+                if ($schema->allOf !== Generator::UNDEFINED) {
+                    /** @var Schema $schemaListItem */
+                    foreach ($schema->allOf as $schemaListItem) {
+                        $this->compressSchema($schemaListItem, $tableRows);
+                    }
+                }
                 return $schema->type;
         }
     }
