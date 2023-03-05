@@ -257,16 +257,19 @@ class GenerateCommand extends BasicCommand
 
     protected function compressSchema(Schema $schema, &$tableRows = [], ?string $prefix = null)
     {
+        $schema_description = ($schema->description !== Generator::UNDEFINED)
+            ? trim($schema->description)
+            : null;
         switch ($schema->type) {
             case 'array':
                 $array_name = $schema instanceof Property ? $schema->property : null;
                 if ($schema->items === null) {
-                    $tableRows[] = [$prefix . $array_name, 'array', $schema->description];
+                    $tableRows[] = [$prefix . $array_name, 'array', $schema_description];
                 } else {
                     if ($this->isScalarSchema($schema->items)) {
-                        $tableRows[] = [$prefix . $array_name, 'array of ' . $this->getScalarTitle($schema->items), $schema->description];
+                        $tableRows[] = [$prefix . $array_name, 'array of ' . $this->getScalarTitle($schema->items), $schema_description];
                     } else {
-                        $tableRows[] = [$prefix . $array_name, 'array of', $schema->description];
+                        $tableRows[] = [$prefix . $array_name, 'array of', $schema_description];
                         $this->compressSchema($schema->items, $tableRows, $prefix . $array_name . '[*].');
                     }
                 }
@@ -277,7 +280,7 @@ class GenerateCommand extends BasicCommand
                     $tableRows[] = [
                         $prefix . $schema->property,
                         ($schema->nullable === true ? '?' : null) . 'object',
-                        ($schema->description !== Generator::UNDEFINED ? $schema->description : null)
+                        $schema_description
                     ];
                 }
                 if ($schema->properties !== Generator::UNDEFINED) {
@@ -297,7 +300,7 @@ class GenerateCommand extends BasicCommand
                     $tableRows[] = [
                         $prefix . $schema->property,
                         ($schema->nullable === true ? '?' : null) . $schema->type,
-                        $schema->description
+                        $schema_description
                     ];
                 } else if ($schema->type === Generator::UNDEFINED) {
                     return false;
