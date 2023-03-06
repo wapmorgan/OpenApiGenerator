@@ -76,6 +76,11 @@ class TypeDescriber
             $typeSpecification = 'string|null';
         }
 
+        if (substr($typeSpecification, 0, 1) === '?') {
+            $typeSpecification = substr($typeSpecification, 1);
+            $isNullableType = true;
+        }
+
         // multiple types - generate Schema for every type
         if (strpos($typeSpecification, '|') !== false) {
             return $this->generateSchemaForFewTypes(
@@ -127,8 +132,8 @@ class TypeDescriber
      */
     public function getKindForType(
         string $declaringClass,
-       ?string $typeSpecification)
-        : ?int
+        ?string $typeSpecification)
+    : ?int
     {
         // Does not make sense to generate empty @OA\Schema
         if ($typeSpecification === null) {
@@ -203,11 +208,11 @@ class TypeDescriber
 
         if ($isIterable) {
             $schema = new Schema([
-                'type' => 'array',
-                'items' => new Items([
-                    'type' => $type,
-                ])
-            ]);
+                                     'type' => 'array',
+                                     'items' => new Items([
+                                                              'type' => $type,
+                                                          ])
+                                 ]);
 
             if (is_array($defaultValue) && !empty($defaultValue)) {
                 $schema->enum = $defaultValue;
@@ -215,8 +220,8 @@ class TypeDescriber
 
         } else {
             $schema = new Schema([
-                'type' => $type,
-            ]);
+                                     'type' => $type,
+                                 ]);
             if (!empty($defaultValue)) {
                 $schema->default = $defaultValue;
             }
@@ -239,9 +244,9 @@ class TypeDescriber
         $schema = $this->generator->getClassDescriber()->generateSchemaForClass($typeSpecification);
         if ($isIterable) {
             $schema = new Schema([
-                'type' => 'array',
-                'items' => $schema,
-            ]);
+                                     'type' => 'array',
+                                     'items' => $schema,
+                                 ]);
         }
         return $schema;
     }
@@ -260,9 +265,9 @@ class TypeDescriber
         $schema = $this->generator->getClassDescriber()->generateSchemaForObject($object);
         if ($isIterable) {
             $schema = new Schema([
-                'type' => 'array',
-                'items' => $schema,
-            ]);
+                                     'type' => 'array',
+                                     'items' => $schema,
+                                 ]);
         }
         return $schema;
     }
@@ -392,24 +397,24 @@ class TypeDescriber
         // an array
         if ($typeSpecification === 'array') {
             $schema = new Schema([
-                'type' => 'array',
-                'items' => new Items([
-                    'type' => 'object',
-                ]),
-            ]);
+                                     'type' => 'array',
+                                     'items' => new Items([
+                                                              'type' => 'object',
+                                                          ]),
+                                 ]);
         }
         // an object
         else if (in_array($typeSpecification, ['stdclass', 'object', 'mixed'], true)) {
             $schema = new Schema([
-                'type' => 'object',
-            ]);
+                                     'type' => 'object',
+                                 ]);
         }
 
         if ($isIterableType) {
             $schema = new Schema([
-                'type' => 'array',
-                'items' => $schema,
-            ]);
+                                     'type' => 'array',
+                                     'items' => $schema,
+                                 ]);
         }
 
         return $schema;
@@ -492,13 +497,13 @@ class TypeDescriber
 //                            ]);
                 default:
                     return new $schemaType([
-                        'oneOf' => $sub_type_schemas,
-                    ]);
+                                               'oneOf' => $sub_type_schemas,
+                                           ]);
             }
         } else {
             return new Schema([
-                'oneOf' => $sub_type_schemas,
-            ]);
+                                  'oneOf' => $sub_type_schemas,
+                              ]);
         }
     }
 }

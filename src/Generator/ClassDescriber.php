@@ -238,6 +238,11 @@ class ClassDescriber
             }
         }
 
+        if (substr($property_type, 0, 1) === '?') {
+            $property_type = substr($property_type, 1);
+            $isNullable = true;
+        }
+
         if (property_exists($declaringClass, trim($property_type, '[]'))) {
             $iterable = false;
             if (substr($property_type, -2) == '[]') {
@@ -296,8 +301,8 @@ class ClassDescriber
         $this->generator->trace('Discovering property '.$propertyReflection->getDeclaringClass()->getName().':'.$propertyReflection->getName());
         if ($doc_comment === false) {
             $this->generator->notice('Property "'.$propertyReflection->getName().'" of "'
-                .$propertyReflection->getDeclaringClass()->getName().'" has no doc-block at all',
-                ErrorableObject::NOTICE_WARNING);
+                                     .$propertyReflection->getDeclaringClass()->getName().'" has no doc-block at all',
+                                     ErrorableObject::NOTICE_WARNING);
         } else {
             $doc = $this->generator->getDocBlockFactory()->create($doc_comment);
             if ($doc->hasTag('var')) {
@@ -309,19 +314,26 @@ class ClassDescriber
                 }
             } else {
                 $this->generator->notice('Property "' . $propertyReflection->getName() . '" of "'
-                    . $propertyReflection->getDeclaringClass()->getName() . '" has no @var tag',
-                    ErrorableObject::NOTICE_ERROR);
+                                         . $propertyReflection->getDeclaringClass()->getName() . '" has no @var tag',
+                                         ErrorableObject::NOTICE_ERROR);
                 unset($doc);
             }
         }
 
         // type
-        if ((isset($doc_block) && $doc_block->getType() !== null) || ($propertyReflection->getType() !== null)) {
+        $type = null;
+        if ((isset($doc_block) && $doc_block->getType() !== null)) {
+            $type = $doc_block->getType();
+        } else if ($propertyReflection->getType() !== null) {
+            $type = (string)$propertyReflection->getType();
+        }
+
+        if (!empty($type)) {
             $isNullable = false;
             /** @var PropertyAnnotation $property */
             $property = $this->generator->getTypeDescriber()->generateSchemaForType(
                 $propertyReflection->getDeclaringClass()->getName(),
-                (isset($doc_block) && $doc_block->getType() !== null) ? $doc_block->getType() : (string)$propertyReflection->getType(),
+                $type,
                 null,
                 $isNullable,
                 PropertyAnnotation::class);
@@ -406,8 +418,8 @@ class ClassDescriber
 
                         if (empty((string)$object_field->getType())) {
                             $this->generator->notice('Property "' . $object_field->getVariableName() . '" of "'
-                                . $class . '" has doc-block, but type is not defined',
-                                ErrorableObject::NOTICE_ERROR);
+                                                     . $class . '" has doc-block, but type is not defined',
+                                                     ErrorableObject::NOTICE_ERROR);
                             continue;
                         }
 
