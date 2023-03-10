@@ -190,9 +190,9 @@ For example, for yii2-project:
    # Or with your own scraper (child of one of basic scrapers)
    ./vendor/bin/openapi-generator generate --scraper components/api/OpenApiScraper.php ./ ./api_docs/
    ```
-3. Deploy swagger with specification (e.g. _api_docs/main.yml_)
+3. Deploy swagger with specification (e.g. _api_docs/main.yml_ on port 8091)
    ```shell
-    docker run -p 80:8080 -e SWAGGER_JSON=./apis/main.yaml -v $(PWD):/usr/share/nginx/html/apis/ swaggerapi/swagger-ui:v4.15.2    
+    docker run -p 8091:8080 --rm -e URL=./apis/main.yaml -v $(pwd):/usr/share/nginx/html/apis/ swaggerapi/swagger-ui:v4.15.2
    ```
 
 More detailed description is in [How to use document](docs/how_to_use.md).
