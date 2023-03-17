@@ -129,7 +129,7 @@ class PathDescriber
                 $link_tag = $link_tags[0];
                 if ($link_tag instanceof InvalidTag) {
                     $this->generator->notice('Tag "' . (string)$link_tag . '" of "'
-                     . $class . '" is invalid: '.$link_tag->getException()->getMessage(),
+                     . $pathOperation->path . '" is invalid: '.$link_tag->getException()->getMessage(),
                      ErrorableObject::NOTICE_ERROR);
                 } else {
                     $pathOperation->externalDocs = new ExternalDocumentation([
