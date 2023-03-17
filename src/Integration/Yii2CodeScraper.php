@@ -13,13 +13,15 @@ use yii\web\Controller;
 
 class Yii2CodeScraper extends ScraperSkeleton
 {
-    public bool $scrapeModules = true;
     public bool $scrapeApplication = true;
+    public string $applicationSpecification = 'app';
+    public bool $scrapeModules = true;
     public bool $scanControllerInlineActions = true;
     public bool $scanControllerExternalActions = true;
     /** @var array<string>string[] Pairs of string-string to be replaced from module folder name and module path in URL */
     public array $replacesForModulePath = [];
 
+    protected string $controllerInApplicationClassPattern = '~^app\\\\controllers\\\\controllers\\\\(?<controller>[a-z0-9_]+)Controller$~i';
     public string $controllerInModuleClassPattern =
         '~^app\\\\modules\\\\(?<moduleId>[a-z0-9_]+)\\\\controllers\\\\(?<controller>[a-z0-9_]+)Controller$~i';
     public string $actionAsControllerMethodPattern = '~^action(?<action>[A-Z][a-z0-9_]+)$~i';
@@ -173,17 +175,21 @@ class Yii2CodeScraper extends ScraperSkeleton
                         }
 
                         // Обработка псевдо-вложенных контроллеров - перевод CamelCase в путь camel/case
-                        preg_match_all('~[A-Z][a-z0-9]+~', $matches['controller'], $uriParts);
-                        $controller_actions = $this->generateClassMethodsList($added_class);
-
-                        if (!empty($controller_actions)) {
-                            $total_actions += count($controller_actions);
-                            $controllers_list[$module_id][$added_class] = [
-                                'moduleId' => $module_id,
-                                'controllerId' => implode('-', array_map('strtolower', $uriParts[0])),
-                                'actions' => $controller_actions,
-                            ];
-                        }
+                        $this->addControllerActions(
+                            $matches['controller'],
+                            $added_class,
+                            $module_id,
+                            $total_actions,
+                            $controllers_list
+                        );
+                    } else if (preg_match($this->controllerInApplicationClassPattern, $added_class, $matches)) {
+                        $this->addControllerActions(
+                            $matches['controller'],
+                            $added_class,
+                            $this->applicationSpecification,
+                            $total_actions,
+                            $controllers_list
+                        );
                     }
                 }
             }
@@ -512,5 +518,30 @@ class Yii2CodeScraper extends ScraperSkeleton
         return array_merge(parent::getClassDescribingOptions(), [
             \yii\db\ActiveRecord::class => [],
         ]);
+    }
+
+    /**
+     * @param string $controllerName
+     * @param string $controllerClass
+     * @param string $moduleId
+     * @param int $totalActions
+     * @param array $controllersList
+     * @return void
+     * @throws \ReflectionException
+     */
+    public function addControllerActions(string $controllerName, string $controllerClass, string $moduleId, int &$totalActions, array &$controllersList): void
+    {
+        // Обработка псевдо-вложенных контроллеров - перевод CamelCase в путь camel/case
+        preg_match_all('~[A-Z][a-z0-9]+~', $controllerName, $uriParts);
+        $controller_actions = $this->generateClassMethodsList($controllerClass);
+
+        if (!empty($controller_actions)) {
+            $totalActions += count($controller_actions);
+            $controllersList[$moduleId][$controllerClass] = [
+                'moduleId' => $moduleId,
+                'controllerId' => implode('-', array_map('strtolower', $uriParts[0])),
+                'actions' => $controller_actions,
+            ];
+        }
     }
 }
