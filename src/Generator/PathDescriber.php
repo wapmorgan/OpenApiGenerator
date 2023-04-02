@@ -518,7 +518,7 @@ class PathDescriber
 
         return new RequestBody([
             // request body is not required if body schema has no required fields
-            'required' => !($schema->required === Generator::UNDEFINED),
+            'required' => !($schema->required === \OpenApi\UNDEFINED),
             'content' => [
                 new MediaType([
                     'mediaType' => 'application/json',
@@ -749,7 +749,7 @@ class PathDescriber
             return null;
 
         if (empty($schema->required))
-            $schema->required = Generator::UNDEFINED;
+            $schema->required = \OpenApi\UNDEFINED;
 
         return $schema;
     }

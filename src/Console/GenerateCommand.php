@@ -32,7 +32,7 @@ class GenerateCommand extends BasicCommand
         $scrapers = array_keys(ScraperSkeleton::getAllDefaultScrapers());
         $this
             ->setHelp('This command allows you to generate openapi-files for current application via user-defined scraper.')
-            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file. Default scrapers: '.implode('/', $scrapers))
+            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class (e.g. App\components\OpenApiScraper) or file (e.g. src/app/components/OpenApiScraper.php) or scraper name (e.g. yii2). Default scrapers: '.implode('/', $scrapers))
 //            ->addOption('generator', 'g', InputOption::VALUE_REQUIRED, 'The generator class or file', DefaultGenerator::class)
             ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
             ->addOption('specification-title', null, InputOption::VALUE_REQUIRED, 'Title', ScraperSkeleton::$specificationTitle)
@@ -121,7 +121,6 @@ class GenerateCommand extends BasicCommand
      */
     public function inspect(InputInterface $input, OutputInterface $output, array $result, ?string $inspectFilter)
     {
-
         switch (count($result)) {
             case 0:
                 $output->writeln('No available specifications');
@@ -257,7 +256,7 @@ class GenerateCommand extends BasicCommand
 
     protected function compressSchema(Schema $schema, &$tableRows = [], ?string $prefix = null)
     {
-        $schema_description = ($schema->description !== Generator::UNDEFINED)
+        $schema_description = ($schema->description !== \OpenApi\UNDEFINED)
             ? trim($schema->description)
             : null;
         switch ($schema->type) {
@@ -283,7 +282,7 @@ class GenerateCommand extends BasicCommand
                         $schema_description
                     ];
                 }
-                if ($schema->properties !== Generator::UNDEFINED) {
+                if ($schema->properties !== \OpenApi\UNDEFINED) {
                     foreach ($schema->properties as $property) {
                         $this->compressSchema($property, $tableRows, $prefix . ($schema instanceof Property ? $schema->property . '.' : null));
                     }
@@ -291,18 +290,18 @@ class GenerateCommand extends BasicCommand
                 return $tableRows;
 
             default:
-                if ($schema->allOf !== Generator::UNDEFINED) {
+                if ($schema->allOf !== \OpenApi\UNDEFINED) {
                     /** @var Schema $schemaListItem */
                     foreach ($schema->allOf as $schemaListItem) {
                         $this->compressSchema($schemaListItem, $tableRows, $prefix . ($schema instanceof Property ? $schema->property . '.' : null));
                     }
-                } else if ($schema->type !== Generator::UNDEFINED) {
+                } else if ($schema->type !== \OpenApi\UNDEFINED) {
                     $tableRows[] = [
                         $prefix . $schema->property,
                         ($schema->nullable === true ? '?' : null) . $schema->type,
                         $schema_description
                     ];
-                } else if ($schema->type === Generator::UNDEFINED) {
+                } else if ($schema->type === \OpenApi\UNDEFINED) {
                     return false;
                 }
         }

@@ -23,7 +23,7 @@ class ScrapeCommand extends BasicCommand
         $scrapers = array_keys(ScraperSkeleton::getAllDefaultScrapers());
         $this
             ->setHelp('This command allows you to inspect all ready-to-scrape methods in current project.')
-            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class or file. Default scrapers: '.implode('/', $scrapers))
+            ->addOption('scraper', null, InputOption::VALUE_REQUIRED, 'The scraper class (e.g. App\components\OpenApiScraper) or file (e.g. src/app/components/OpenApiScraper.php) or scraper name (e.g. yii2). Default scrapers: '.implode('/', $scrapers))
             ->addOption('specification', null, InputOption::VALUE_REQUIRED, 'Pattern for specifications', '.+')
             ->addArgument('directory', InputArgument::OPTIONAL, 'Folder to start analysis', getcwd())
         ;

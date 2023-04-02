@@ -54,7 +54,7 @@ class LaravelFormRequestExtractor extends ExtractorSkeleton
                             case In::class:
                                 $values = ReflectionsCollection::getProtectedProperty($attribute_rule, 'values');
 
-                                if ($parameter->schema === Generator::UNDEFINED) {
+                                if ($parameter->schema === \OpenApi\UNDEFINED) {
                                     $parameter->schema = new Schema([
                                         'type' => 'string',
                                         'enum' => $values,
