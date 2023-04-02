@@ -15,14 +15,15 @@ abstract class SlimCodeScraper extends ScraperSkeleton
     protected string $actionClass = Action::class;
 
     /**
+     * @param string $folder
      * @return App
      */
-    abstract public function getApp(): App;
-
-    /**
-     * @return string[]
-     */
-    abstract public function getServers(): array;
+    public function getApp(string $folder): App
+    {
+        /** @var App $app */
+        require_once $folder . '/app/app.php';
+        return $app;
+    }
 
     /**
      * @return PathResultWrapper|null
@@ -39,7 +40,7 @@ abstract class SlimCodeScraper extends ScraperSkeleton
      */
     public function scrape(string $folder): array
     {
-        $app = $this->getApp();
+        $app = $this->getApp($folder);
         $routes = $app->getRouteCollector()->getRoutes();
 
         $result = [];
