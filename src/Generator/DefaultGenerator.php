@@ -329,7 +329,7 @@ class DefaultGenerator extends ErrorableObject
                 'description' => $tag->description,
                 'externalDocs' => ($tag->externalDocs !== null
                     ? new ExternalDocumentation(['url' => $tag->externalDocs])
-                    : \OpenApi\Generator::UNDEFINED),
+                    : \OpenApi\UNDEFINED),
             ]);
         }
 
@@ -354,7 +354,7 @@ class DefaultGenerator extends ErrorableObject
                         'scheme' => $securityScheme->scheme,
                         'bearerFormat' => $securityScheme->bearerFormat !== null
                              ? $securityScheme->bearerFormat
-                             : \OpenApi\Generator::UNDEFINED,
+                             : \OpenApi\UNDEFINED,
                      ]);
                     break;
 
