@@ -17,7 +17,7 @@ abstract class ScraperSkeleton extends ErrorableObject
 
     public static string $specificationTitle = 'API';
     public static string $specificationDescription = 'API version %s';
-    public static string $specificationVersion = '0.0.1';
+    public static string $specificationVersion = 'api';
 
     public array $servers = [
         'http://localhost:8080/' => 'Local server',

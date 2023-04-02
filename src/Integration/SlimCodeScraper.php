@@ -46,8 +46,9 @@ abstract class SlimCodeScraper extends ScraperSkeleton
 
         $result = [];
         $result[0] = new Specification();
-        $result[0]->version = 'api';
-        $result[0]->title = $this->getTitle();
+        $result[0]->version = static::$specificationVersion;
+        $result[0]->title = static::$specificationTitle;
+        $result[0]->description = sprintf(static::$specificationDescription, static::$specificationVersion);
 
         foreach ($this->getServers() as $serverUrl) {
             $result[0]->servers[] = new Server(['url' => $serverUrl]);
