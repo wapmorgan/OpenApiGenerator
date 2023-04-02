@@ -3,6 +3,7 @@ namespace wapmorgan\OpenApiGenerator\Integration;
 
 use App\Application\Actions\Action;
 use Slim\App;
+use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
 use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Result;
@@ -62,11 +63,26 @@ abstract class SlimCodeScraper extends ScraperSkeleton
 
             $callable = $route->getCallable();
             if (is_string($callable) && class_exists($callable) && is_a($callable, $this->actionClass, true)) {
+                $action_reflection = ReflectionsCollection::getMethod($callable, 'action');
+                $action_doc = $action_reflection->getDocComment();
                 $endpoint->callback = [$callable, 'action'];
+            } else {
+                $action_doc = null;
             }
 
             if (substr_count($pattern, '/') > 1) {
                 $endpoint->tags[] = substr($pattern, 1, strpos($pattern, '/', 1) - 1);
+            }
+
+            // check for @auth tag
+            if (
+                isset($action_doc)
+                && !empty($action_auth = $this->getDocParameter($action_doc, 'auth', ''))
+            ) {
+                if (isset($action_auth) && !empty($action_auth)) {
+                    $this->ensureSecuritySchemeAdded($result[0], $action_auth);
+                    $endpoint->securitySchemes[] = $action_auth;
+                }
             }
 
             $endpoint->resultWrapper = $path_wrapper;
