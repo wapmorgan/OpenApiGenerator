@@ -371,7 +371,7 @@ class ClassDescriber
         foreach ($rules as $ruleClass => $ruleOptions) {
             if ($ruleClass === null) continue;
 
-            if (is_subclass_of($class, $ruleClass)) {
+            if ($class === $ruleClass || is_subclass_of($class, $ruleClass)) {
                 return $ruleOptions;
             }
         }
