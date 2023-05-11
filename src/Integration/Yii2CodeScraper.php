@@ -255,9 +255,11 @@ class Yii2CodeScraper extends ScraperSkeleton
         $specification->description = $moduleDescription ?? sprintf(static::$specificationDescription, $moduleId);
         $specification->externalDocs = $moduleDocs;
 
+        $modulePath = trim($modulePath, '/\\');
+
         foreach ($this->getServers() as $server_url => $server_description) {
             $specification->servers[] = new Server([
-               'url' => $server_url . $modulePath . '/',
+               'url' => $server_url . (!empty($modulePath) ? $modulePath . '/' : null),
                'description' => $server_description,
             ]);
         }
