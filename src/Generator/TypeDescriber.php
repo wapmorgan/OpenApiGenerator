@@ -281,7 +281,10 @@ class TypeDescriber
         $additionalProperties = [];
         switch ($type) {
             case 'float':
+            case 'double':
                 $additionalProperties['format'] = 'float';
+                return 'number';
+
             case 'int':
                 return 'integer';
 
