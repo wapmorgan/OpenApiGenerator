@@ -204,14 +204,14 @@ class TypeDescriber
         $defaultValue,
         bool $isIterable): Schema
     {
-        $type = $this->canonizePrimitiveType($typeSpecification);
+        $type = $this->canonizePrimitiveType($typeSpecification, $additionalTypeProperties);
 
         if ($isIterable) {
             $schema = new Schema([
                                      'type' => 'array',
                                      'items' => new Items([
                                                               'type' => $type,
-                                                          ])
+                                                          ] + $additionalTypeProperties)
                                  ]);
 
             if (is_array($defaultValue) && !empty($defaultValue)) {
@@ -221,7 +221,7 @@ class TypeDescriber
         } else {
             $schema = new Schema([
                                      'type' => $type,
-                                 ]);
+                                 ] + $additionalTypeProperties);
             if (!empty($defaultValue)) {
                 $schema->default = $defaultValue;
             }
@@ -276,10 +276,12 @@ class TypeDescriber
      * @param string $type
      * @return string
      */
-    public function canonizePrimitiveType(string $type): string
+    public function canonizePrimitiveType(string $type, &$additionalProperties = []): string
     {
+        $additionalProperties = [];
         switch ($type) {
             case 'float':
+                $additionalProperties['format'] = 'float';
             case 'int':
                 return 'integer';
 
