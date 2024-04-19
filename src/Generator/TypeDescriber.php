@@ -373,6 +373,10 @@ class TypeDescriber
             if (is_array($token) && $token[0] === T_USE) {
                 $import = null;
                 $i += 2;
+                // if `use (...)` with anonumous function
+                if (!is_array($tokens[$i]) && $tokens[$i] === '(') {
+                    continue;
+                }
                 while (is_array($tokens[$i]) && in_array($tokens[$i][0], $allowed_tokens)) {
                     if ($tokens[$i][0] !== T_WHITESPACE) {
                         $import .= defined('T_NAME_FULLY_QUALIFIED') && $tokens[$i][0] === T_NAME_FULLY_QUALIFIED
