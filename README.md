@@ -1,5 +1,5 @@
 # What is it?
-It is OpenApi configuration generator that works with origin source code.
+It is OpenApi configuration generator that works with origin source code + phpdoc.
 
 [![Latest Stable Version](https://poser.pugx.org/wapmorgan/openapi-generator/v/stable)](https://packagist.org/packages/wapmorgan/openapi-generator)
 [![Latest Unstable Version](https://poser.pugx.org/wapmorgan/openapi-generator/v/unstable)](https://packagist.org/packages/wapmorgan/openapi-generator)
