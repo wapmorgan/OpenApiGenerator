@@ -651,7 +651,9 @@ class PathDescriber
         }
 
         $parameter = new Parameter([
-            'name' => $pathParameter->getName(),
+            'name' => ($schema !== null && $schema->type === 'array')
+                ? $pathParameter->getName() . '[]'
+                : $pathParameter->getName(),
             'in' => 'query',
             'description' => $description,
             'schema' => $schema,
