@@ -21,6 +21,7 @@ use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
 use wapmorgan\OpenApiGenerator\ErrorableObject;
+use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
 use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
 
 use const OpenApi\UNDEFINED;
@@ -103,9 +104,24 @@ class PathDescriber
      * @param Operation $pathOperation
      * @return void
      */
-    public function generatePathDescription(Operation $pathOperation, ?DocBlock $docBlock): void
+    public function generatePathDescription(
+        ReflectionMethod $reflectionMethod,
+        Operation $pathOperation,
+        ?DocBlock $docBlock,
+        bool $writePathCallback,
+        bool $writePathFile
+    ): void
     {
         $description = [];
+
+        if ($writePathCallback) {
+            $description[] = 'Callback: `' . $reflectionMethod->getDeclaringClass()->getName() . '::' . $reflectionMethod->getName() . '`';
+            $description[] = null;
+        }
+        if ($writePathFile) {
+            $description[] = 'File: *' . ($writePathCallback ? '*' : null) . $reflectionMethod->getDeclaringClass()->getFileName() . '*' . ($writePathCallback ? '*' : null);
+            $description[] = null;
+        }
 
         if ($docBlock !== null && !empty($docBlock->getDescription())) {
             $description[] = implode("\n", array_map(static function ($line) {

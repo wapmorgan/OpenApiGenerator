@@ -31,6 +31,8 @@ class DefaultGenerator extends ErrorableObject
     public const TREAT_EXTRACTED_ARGUMENTS_AS_BODY = 5;
     public const PARSE_PARAMETERS_FROM_ENDPOINT = 3;
     public const PARSE_PARAMETERS_FORMAT_DESCRIPTION = 4;
+    public const WRITE_PATH_CALLBACK = 6;
+    public const WRITE_PATH_FILE = 7;
 
     protected $settings = [
         self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS => false,
@@ -38,6 +40,8 @@ class DefaultGenerator extends ErrorableObject
         self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY => false,
         self::PARSE_PARAMETERS_FROM_ENDPOINT => false,
         self::PARSE_PARAMETERS_FORMAT_DESCRIPTION => false,
+        self::WRITE_PATH_CALLBACK => false,
+        self::WRITE_PATH_FILE => false,
     ];
 
     /**
@@ -440,7 +444,8 @@ class DefaultGenerator extends ErrorableObject
             $path_request_body = $this->pathDescriber->generatePathOperationBody(
                 $path_reflection,
                 $doc_block,
-                $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY]);
+                $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY]
+            );
 
             // if request has body and method set to GET, change it to POST
             if ($path_request_body !== null
@@ -459,7 +464,13 @@ class DefaultGenerator extends ErrorableObject
             'tags' => $resultPath->tags,
         ]);
 
-        $this->pathDescriber->generatePathDescription($path_method, $doc_block);
+        $this->pathDescriber->generatePathDescription(
+            $path_reflection,
+            $path_method,
+            $doc_block,
+            $this->settings[self::WRITE_PATH_CALLBACK],
+            $this->settings[self::WRITE_PATH_FILE]
+        );
 
         if (!empty($resultPath->securitySchemes)) {
             $path_method->security = [];
