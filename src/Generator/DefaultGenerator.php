@@ -492,7 +492,8 @@ class DefaultGenerator extends ErrorableObject
                 $this->pathDescriber->combineResponseWithWrapper(
                     $path_response_schemas,
                     $path_reflection,
-                    $resultPath->resultWrapper
+                    $resultPath->resultWrapper,
+                    $resultPath->responseContentType
                 )
             ];
         } else if (!empty($resultPath->resultWrapper)) {
@@ -500,8 +501,13 @@ class DefaultGenerator extends ErrorableObject
                 $this->pathDescriber->combineResponseWithWrapper(
                     null,
                     $path_reflection,
-                    $resultPath->resultWrapper
+                    $resultPath->resultWrapper,
+                    $resultPath->responseContentType
                 )
+            ];
+        } else if ($resultPath->responseContentType !== 'application/json') {
+            $path_method->responses = [
+                $this->pathDescriber->generateRawResponse($resultPath->responseContentType)
             ];
         }
 

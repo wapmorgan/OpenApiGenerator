@@ -4,6 +4,7 @@ namespace wapmorgan\OpenApiGenerator\Integration;
 use ReflectionMethod;
 use wapmorgan\OpenApiGenerator\ReflectionsCollection;
 use wapmorgan\OpenApiGenerator\Scraper\Endpoint;
+use wapmorgan\OpenApiGenerator\Scraper\PathResultWrapper;
 use wapmorgan\OpenApiGenerator\Scraper\Server;
 use wapmorgan\OpenApiGenerator\Scraper\Specification;
 use wapmorgan\OpenApiGenerator\Scraper\Tag;
@@ -69,6 +70,8 @@ class Yii2CodeScraper extends ScraperSkeleton
                 $controller_title = $this->getDocParameter($controller_doc, 'title', '');
                 $controller_description = $this->getMultiLineDocParameter($controller_doc, 'description', '');
                 $controller_docs = $this->getDocParameter($controller_doc, 'docs', '');
+                $controller_wrapper = $this->getPathWrapperFromDoc($controller_doc, $default_wrapper);
+                $controller_response_content_type = $this->getResponseContentTypeFromDoc($controller_doc);
                 $controller_tag = !empty($controller_title)
                     ? '('.$controller_configuration['controllerId'].') '.$controller_title
                     : $controller_configuration['controllerId'];
@@ -87,7 +90,8 @@ class Yii2CodeScraper extends ScraperSkeleton
                                 : null) // hide default controller path
                             . '/' . $controller_action_id;
                         $path->tags[] = $controller_tag;
-                        $path->resultWrapper = $default_wrapper;
+                        $path->resultWrapper = $controller_wrapper;
+                        $path->responseContentType = $controller_response_content_type;
 
                         $action_reflection = $this->parseActionInController(
                             $controller_class,
@@ -95,6 +99,11 @@ class Yii2CodeScraper extends ScraperSkeleton
                             $path
                         );
                         $action_doc = $action_reflection->getDocComment();
+                        $path->resultWrapper = $this->getPathWrapperFromDoc($action_doc, $path->resultWrapper);
+                        $path->responseContentType = $this->getResponseContentTypeFromDoc(
+                            $action_doc,
+                            $path->responseContentType
+                        );
 
                         // check for @auth tag
                         if (
@@ -265,6 +274,53 @@ class Yii2CodeScraper extends ScraperSkeleton
         }
 
         return $specification;
+    }
+
+    protected function getPathWrapperFromDoc($doc, ?PathResultWrapper $defaultWrapper): ?PathResultWrapper
+    {
+        if (empty($doc)) {
+            return $defaultWrapper;
+        }
+
+        $path_wrapper = $this->getDocParameter($doc, 'pathWrapper');
+        if ($path_wrapper === null) {
+            return $defaultWrapper;
+        }
+
+        $path_wrapper = trim($path_wrapper);
+        if ($path_wrapper === '') {
+            return $defaultWrapper;
+        }
+
+        if (strcasecmp($path_wrapper, 'null') === 0) {
+            return null;
+        }
+
+        return $this->createPathWrapperFromDocValue($path_wrapper);
+    }
+
+    protected function createPathWrapperFromDocValue(string $pathWrapper): PathResultWrapper
+    {
+        $parts = preg_split('/\s+/', trim($pathWrapper), 2);
+        return new PathResultWrapper([
+            'wrapperClass' => $parts[0],
+            'resultingProperty' => $parts[1] ?? 'result',
+        ]);
+    }
+
+    protected function getResponseContentTypeFromDoc($doc, string $defaultContentType = 'application/json'): string
+    {
+        if (empty($doc)) {
+            return $defaultContentType;
+        }
+
+        $response_content_type = $this->getDocParameter($doc, 'responseContentType');
+        if ($response_content_type === null) {
+            return $defaultContentType;
+        }
+
+        $response_content_type = trim($response_content_type);
+        return $response_content_type !== '' ? $response_content_type : $defaultContentType;
     }
 
     /**

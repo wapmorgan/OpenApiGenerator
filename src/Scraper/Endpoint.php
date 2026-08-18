@@ -36,6 +36,11 @@ class Endpoint extends InitableObject
     public $resultWrapper;
 
     /**
+     * @var string Response content type
+     */
+    public $responseContentType = 'application/json';
+
+    /**
      * @var null|string|object Pointer to another type that is the real result of endpoint.
      * Can be an object, which will be described as usual complex type (class).
      */

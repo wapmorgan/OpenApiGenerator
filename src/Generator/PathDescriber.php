@@ -242,14 +242,16 @@ class PathDescriber
      * @param array|null $schemas
      * @param ReflectionMethod $actionReflection
      * @param PathResultWrapper|null $pathResultWrapper
+     * @param string $responseContentType
      * @return null
      * @throws ReflectionException
      */
     public function combineResponseWithWrapper(
         ?array $schemas,
         ReflectionMethod $actionReflection,
-        ?PathResultWrapper $pathResultWrapper)
-    {
+        ?PathResultWrapper $pathResultWrapper,
+        string $responseContentType = 'application/json'
+    ) {
         $declaring_class = $actionReflection->getDeclaringClass()->getName();
         if ($pathResultWrapper !== null) {
             $result_wrapper_schema = $this->generateSchemaForPathResultBlock($declaring_class, $pathResultWrapper->wrapperClass, null);
@@ -287,8 +289,21 @@ class PathDescriber
             'description' => 'Successful response',
             'content' => [
                 new MediaType([
-                    'mediaType' => 'application/json',
+                    'mediaType' => $responseContentType,
                     'schema' => $result_block,
+                ])
+            ],
+        ]);
+    }
+
+    public function generateRawResponse(string $responseContentType): Response
+    {
+        return new Response([
+            'response' => 200,
+            'description' => 'Successful response',
+            'content' => [
+                new MediaType([
+                    'mediaType' => $responseContentType,
                 ])
             ],
         ]);
