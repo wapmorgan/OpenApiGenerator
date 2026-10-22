@@ -236,6 +236,51 @@ By default, they all are disabled.
 - Only query parameters supported (`url?param1=...&param2=...`) or body json parameters (`{data: 123`).
 - Only one response type supported - HTTP 200 response.
 - No support for parameters' / fields' / properties' `format`, `example` and other validators.
+- PHPDoc array maps (`array<K, V>`) and shapes (`array{...}`) are supported for endpoint parameters and responses. List-shape semantics and the rest of the Psalm/PHPStan type syntax are not fully supported yet.
+
+## Tests
+
+Type-to-schema regression tests run in a Docker Composer container. Only Docker and Make are required on the host:
+
+```sh
+make test
+```
+
+When the library is inside the AG project, the target reuses its installed dependencies but runs PHPUnit in a container. For a standalone checkout, the target installs dependencies with Composer inside the container. See the [development roadmap](docs/development-roadmap.md) for planned parser, schema, diagnostics, and integration improvements.
+
+## Input parameter location
+
+Use a location-specific tag to describe where a method argument comes from:
+
+```php
+/**
+ * @param int $id Resource identifier.
+ * @pathParam $id
+ * @param string|null $filter Filter.
+ * @queryParam $filter
+ * @headerParam string $request_id name=X-Request-Id format=uuid optional Request identifier.
+ * @cookieParam string $locale optional Interface locale.
+ * @bodyParam CreateRequest $request required Creation payload.
+ */
+```
+
+Use `@pathParam`, `@queryParam`, `@headerParam`, `@cookieParam`, and `@bodyParam`. For a tag referring to a method argument, `$name` alone is enough; its type is taken from `@param` or the PHP signature. For an external value that is not a method argument, include its type in the location tag. Set the wire name with `name=` and the format with `format=`. Requiredness for bound arguments is inferred from the PHP signature; external parameters are optional by default, while path parameters are always required.
+
+Use the same tags for values read directly from the Request that are not `run()` arguments:
+
+```php
+/**
+ * @headerParam string $request_id name=X-Request-Id format=uuid optional Request identifier.
+ * @cookieParam string $locale optional Interface locale.
+ * @queryParam int $tenant required Organization ID.
+ * @bodyParam array<string, int> $payload required Request payload.
+ */
+public function run(): array
+```
+
+Syntax: `@<location>Param [<type>] $<name> [name=<wire-name>] [format=<format>] [required|optional] <description>`, where `<location>` is `query`, `path`, `header`, `cookie`, or `body`. Path parameters are always required. Each `@bodyParam` describes a property in a JSON object; use `@requestBody <type> required|optional <description>` to describe the entire request body schema. Do not combine `@requestBody` with `@bodyParam` fields. Request bodies currently use `application/json` only. The legacy `@apiParameter` tag remains supported for compatibility, but new PHPDoc should use the location-specific tags.
+
+If no location is specified, the backward-compatible behavior is retained: primitive types are treated as query parameters, while complex types go into the JSON body when the corresponding scraper setting is enabled. Route placeholders such as `{id}` are treated as path parameters when `PARSE_PARAMETERS_FROM_ENDPOINT` is enabled. When `CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS` is enabled, an endpoint declared as GET is generated as POST if it has a request body. Explicit locations document the contract but do not change runtime parameter binding: the application must still read header and cookie values from the appropriate request source.
 
 ## ToDo
 - [x] Support for few operations on one endpoint (GET/POST/PUT/DELETE/...).

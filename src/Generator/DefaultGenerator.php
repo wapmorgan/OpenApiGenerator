@@ -440,18 +440,20 @@ class DefaultGenerator extends ErrorableObject
             $doc_block = $this->docBlockFactory->create($path_doc);
         }
 
-        if ($this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY]) {
+        $hasExplicitBodyParameter = $this->pathDescriber->hasExplicitBodyParameter($doc_block);
+        if ($this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY] || $hasExplicitBodyParameter) {
             $path_request_body = $this->pathDescriber->generatePathOperationBody(
                 $path_reflection,
                 $doc_block,
-                $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY]
+                $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY],
+                $this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY]
             );
 
             // if request has body and method set to GET, change it to POST
             if ($path_request_body !== null
                 && $this->settings[self::CHANGE_GET_TO_POST_FOR_COMPLEX_PARAMETERS]
                 && strcasecmp($resultPath->httpMethod, 'get') === 0) {
-                $this->notice('Http method of ' . $resultPath->id . ' changed from "' . $resultPath->httpMethod . '" to "post" because of request body', self::NOTICE_INFO);
+                $this->notice('Http method of ' . $resultPath->id . ' changed from "' . $resultPath->httpMethod . '" to "post" because of its request body', self::NOTICE_INFO);
                 $resultPath->httpMethod = 'post';
             }
         }
@@ -511,19 +513,29 @@ class DefaultGenerator extends ErrorableObject
             ];
         }
 
+        $pathParameterNames = [];
+        if ($this->settings[self::PARSE_PARAMETERS_FROM_ENDPOINT]
+            && preg_match_all('~\{([a-z_][a-z0-9_-]*)\}~i', $resultPath->id, $matches) > 0) {
+            $pathParameterNames = $matches[1];
+        }
+
         $path_method->parameters = $this->pathDescriber->generatePathOperationParameters(
             $path_reflection,
             $doc_block,
-            $this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY] && $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY]);
+            $this->settings[self::TREAT_COMPLEX_ARGUMENTS_AS_BODY] && $this->settings[self::TREAT_EXTRACTED_ARGUMENTS_AS_BODY],
+            $pathParameterNames
+        );
 
-        if ($this->settings[self::PARSE_PARAMETERS_FROM_ENDPOINT]
-            && preg_match_all('~\{([a-z]+)\}~i', $resultPath->id, $matches) > 0) {
-            foreach ($matches[1] as $match) {
-                foreach ($path_method->parameters as $parameter) {
-                    if ($parameter->name === $match) {
-                        $parameter->in = 'path';
-                    }
+        foreach ($pathParameterNames as $pathParameterName) {
+            $hasPathParameter = false;
+            foreach ($path_method->parameters as $parameter) {
+                if ($parameter->name === $pathParameterName && $parameter->in === 'path') {
+                    $hasPathParameter = true;
+                    break;
                 }
+            }
+            if (!$hasPathParameter) {
+                $this->notice('Path placeholder {' . $pathParameterName . '} of ' . $resultPath->id . ' has no matching documented parameter', self::NOTICE_ERROR);
             }
         }
 

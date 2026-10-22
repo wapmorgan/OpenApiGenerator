@@ -2,6 +2,7 @@
 namespace wapmorgan\OpenApiGenerator\Generator;
 
 use OpenApi\Annotations\AbstractAnnotation;
+use OpenApi\Annotations\AdditionalProperties;
 use OpenApi\Annotations\Items;
 use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\Property;
@@ -82,7 +83,7 @@ class TypeDescriber
         }
 
         // multiple types - generate Schema for every type
-        if (strpos($typeSpecification, '|') !== false) {
+        if ($this->containsTopLevelDelimiter($typeSpecification, '|')) {
             return $this->generateSchemaForFewTypes(
                 $typeSpecification,
                 $declaringClass,
@@ -90,6 +91,22 @@ class TypeDescriber
                 $isNullableType,
                 $schemaType,
                 $kindOfType);
+        }
+
+        $arrayShape = $this->parseArrayShape($typeSpecification);
+        if ($arrayShape !== null) {
+            $kindOfType = self::COMPLEX_ABSTRACT_TYPE;
+            $schema = $this->generateSchemaForArrayShape($declaringClass, $arrayShape, $schemaType);
+            $schema->nullable = $isNullableType;
+            return $schema;
+        }
+
+        $genericArray = $this->parseGenericArray($typeSpecification);
+        if ($genericArray !== null) {
+            $kindOfType = self::COMPLEX_ABSTRACT_TYPE;
+            $schema = $this->generateSchemaForGenericArray($declaringClass, $genericArray, $defaultValue, $schemaType);
+            $schema->nullable = $isNullableType;
+            return $schema;
         }
 
         // remove brackets from iterable specification
@@ -108,6 +125,10 @@ class TypeDescriber
         } else {
             $kindOfType = self::COMPLEX_TYPE;
             $schema = $this->generateSchemaPartsForComplexType($this->resolveLocalName($declaringClass, $typeSpecification), $is_iterable_type);
+        }
+
+        if ($schema === null) {
+            return null;
         }
 
         $schema->nullable = $isNullableType;
@@ -140,13 +161,24 @@ class TypeDescriber
             return null;
         }
 
+        if (substr($typeSpecification, 0, 1) === '?') {
+            $typeSpecification = substr($typeSpecification, 1);
+        }
+
         // multiple types - generate Schema for every type
-        if (strpos($typeSpecification, '|') !== false) {
+        if ($this->containsTopLevelDelimiter($typeSpecification, '|')) {
             $kind = null;
-            foreach (explode('|', $typeSpecification) as $type_variant) {
-                $kind = max($kind, $this->getKindForType($declaringClass, $type_variant));
+            foreach ($this->splitTopLevel($typeSpecification, '|') as $type_variant) {
+                $variantKind = $this->getKindForType($declaringClass, $type_variant);
+                if ($variantKind !== null) {
+                    $kind = $kind === null ? $variantKind : max($kind, $variantKind);
+                }
             }
             return $kind;
+        }
+
+        if ($this->parseArrayShape($typeSpecification) !== null || $this->parseGenericArray($typeSpecification) !== null) {
+            return self::COMPLEX_ABSTRACT_TYPE;
         }
 
         // remove brackets from iterable specification
@@ -214,15 +246,15 @@ class TypeDescriber
                                                           ] + $additionalTypeProperties)
                                  ]);
 
-            if (is_array($defaultValue) && !empty($defaultValue)) {
-                $schema->enum = $defaultValue;
+            if ($defaultValue !== null) {
+                $schema->default = $defaultValue;
             }
 
         } else {
             $schema = new Schema([
                                      'type' => $type,
                                  ] + $additionalTypeProperties);
-            if (!empty($defaultValue)) {
+            if ($defaultValue !== null) {
                 $schema->default = $defaultValue;
             }
         }
@@ -239,7 +271,7 @@ class TypeDescriber
     public function generateSchemaPartsForComplexType(
         ?string $typeSpecification,
         bool $isIterable
-    ): Schema
+    ): ?Schema
     {
         $schema = $this->generator->getClassDescriber()->generateSchemaForClass($typeSpecification);
         if ($isIterable) {
@@ -270,6 +302,241 @@ class TypeDescriber
                                  ]);
         }
         return $schema;
+    }
+
+    /**
+     * Parse array/list shapes such as `array{name: string, age?: int}`.
+     *
+     * @return array|null
+     */
+    protected function parseArrayShape(string $typeSpecification): ?array
+    {
+        if (!preg_match('/^(?:array|list)\s*\{(.*)\}$/s', trim($typeSpecification), $matches)) {
+            return null;
+        }
+
+        $properties = [];
+        $additionalType = null;
+        foreach ($this->splitTopLevel($matches[1], ',') as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            if (strpos($part, '...') === 0) {
+                $additionalType = trim(substr($part, 3));
+                if (substr($additionalType, 0, 1) === '<' && substr($additionalType, -1) === '>') {
+                    $genericTypes = $this->splitTopLevel(substr($additionalType, 1, -1), ',');
+                    $additionalType = end($genericTypes);
+                }
+                continue;
+            }
+
+            $colonPosition = $this->findTopLevelCharacter($part, ':');
+            if ($colonPosition === null) {
+                return null;
+            }
+
+            $propertyName = trim(substr($part, 0, $colonPosition));
+            $optional = substr($propertyName, -1) === '?';
+            if ($optional) {
+                $propertyName = substr($propertyName, 0, -1);
+            }
+            $propertyName = trim($propertyName, " \t\n\r\0\x0B'\"");
+            if ($propertyName === '') {
+                return null;
+            }
+
+            $properties[] = [
+                'name' => $propertyName,
+                'type' => trim(substr($part, $colonPosition + 1)),
+                'optional' => $optional,
+            ];
+        }
+
+        return ['properties' => $properties, 'additionalType' => $additionalType];
+    }
+
+    /**
+     * Parse array/list generic declarations such as `array<string, Foo>` and `list<Foo>`.
+     *
+     * @return array|null
+     */
+    protected function parseGenericArray(string $typeSpecification): ?array
+    {
+        if (!preg_match('/^(array|list)\s*<(.+)>$/s', trim($typeSpecification), $matches)) {
+            return null;
+        }
+
+        $types = $this->splitTopLevel($matches[2], ',');
+        if ($matches[1] === 'list' && count($types) === 1) {
+            return ['kind' => 'list', 'valueType' => trim($types[0])];
+        }
+        if (count($types) === 1) {
+            return ['kind' => 'list', 'valueType' => trim($types[0])];
+        }
+        if (count($types) === 2) {
+            return ['kind' => 'map', 'keyType' => trim($types[0]), 'valueType' => trim($types[1])];
+        }
+
+        return null;
+    }
+
+    protected function generateSchemaForArrayShape(string $declaringClass, array $shape, ?string $schemaType): Schema
+    {
+        $properties = [];
+        $required = [];
+        foreach ($shape['properties'] as $property) {
+            $nullable = false;
+            $kind = null;
+            $schema = $this->generateSchemaForType(
+                $declaringClass,
+                $property['type'],
+                null,
+                $nullable,
+                Property::class,
+                $kind
+            );
+            if ($schema === null) {
+                continue;
+            }
+            $schema->property = $property['name'];
+            $properties[] = $schema;
+            if (!$property['optional']) {
+                $required[] = $property['name'];
+            }
+        }
+
+        $schema = new Schema([
+            'type' => 'object',
+            'properties' => $properties,
+            'required' => $required ?: \OpenApi\Generator::UNDEFINED,
+        ]);
+
+        if ($shape['additionalType'] !== null && $shape['additionalType'] !== '') {
+            $nullable = false;
+            $kind = null;
+            $additionalSchema = $this->generateSchemaForType(
+                $declaringClass,
+                $shape['additionalType'],
+                null,
+                $nullable,
+                AdditionalProperties::class,
+                $kind
+            );
+            if ($additionalSchema !== null) {
+                $schema->additionalProperties = $additionalSchema;
+            }
+        }
+
+        return $this->convertSchemaType($schema, $schemaType);
+    }
+
+    protected function generateSchemaForGenericArray(string $declaringClass, array $generic, $defaultValue, ?string $schemaType): Schema
+    {
+        $nullable = false;
+        $kind = null;
+        $itemSchema = $this->generateSchemaForType($declaringClass, $generic['valueType'], null, $nullable);
+        if ($itemSchema === null) {
+            $itemSchema = new Schema(['type' => 'object']);
+        }
+
+        if ($generic['kind'] === 'map') {
+            $additionalProperties = $this->convertSchemaType($itemSchema, AdditionalProperties::class);
+            $schema = new Schema([
+                'type' => 'object',
+                'additionalProperties' => $additionalProperties,
+            ]);
+        } else {
+            $items = $this->convertSchemaType($itemSchema, Items::class);
+            $schema = new Schema([
+                'type' => 'array',
+                'items' => $items,
+            ]);
+            if ($defaultValue !== null) {
+                $schema->default = $defaultValue;
+            }
+        }
+
+        return $this->convertSchemaType($schema, $schemaType);
+    }
+
+    protected function convertSchemaType(Schema $schema, ?string $schemaType): Schema
+    {
+        if ($schemaType === null || $schemaType === Schema::class) {
+            return $schema;
+        }
+        if (!is_subclass_of($schemaType, Schema::class) && $schemaType !== Parameter::class) {
+            throw new \RuntimeException('Invalid target Schema-class: ' . $schemaType);
+        }
+
+        $converted = new $schemaType([]);
+        $this->transferOptions($schema, $converted);
+        return $converted;
+    }
+
+    protected function containsTopLevelDelimiter(string $value, string $delimiter): bool
+    {
+        return count($this->splitTopLevel($value, $delimiter)) > 1;
+    }
+
+    /**
+     * Split a union type without splitting unions nested inside generic or shape declarations.
+     *
+     * @return string[]
+     */
+    public function splitTypeVariants(string $typeSpecification): array
+    {
+        return array_map('trim', $this->splitTopLevel($typeSpecification, '|'));
+    }
+
+    /** @return string[] */
+    protected function splitTopLevel(string $value, string $delimiter): array
+    {
+        $parts = [];
+        $start = 0;
+        $angle = $brace = $paren = $bracket = 0;
+        $quote = null;
+        $length = strlen($value);
+        for ($i = 0; $i < $length; $i++) {
+            $character = $value[$i];
+            if ($quote !== null) {
+                if ($character === $quote && ($i === 0 || $value[$i - 1] !== '\\')) {
+                    $quote = null;
+                }
+                continue;
+            }
+            if ($character === '\'' || $character === '"') {
+                $quote = $character;
+                continue;
+            }
+            switch ($character) {
+                case '<': $angle++; break;
+                case '>': $angle = max(0, $angle - 1); break;
+                case '{': $brace++; break;
+                case '}': $brace = max(0, $brace - 1); break;
+                case '(': $paren++; break;
+                case ')': $paren = max(0, $paren - 1); break;
+                case '[': $bracket++; break;
+                case ']': $bracket = max(0, $bracket - 1); break;
+                default:
+                    if ($character === $delimiter && $angle === 0 && $brace === 0 && $paren === 0 && $bracket === 0) {
+                        $parts[] = substr($value, $start, $i - $start);
+                        $start = $i + 1;
+                    }
+            }
+        }
+        $parts[] = substr($value, $start);
+        return $parts;
+    }
+
+    protected function findTopLevelCharacter(string $value, string $characterToFind): ?int
+    {
+        $parts = $this->splitTopLevel($value, $characterToFind);
+        if (count($parts) < 2) {
+            return null;
+        }
+        return strlen($parts[0]);
     }
 
     /**
@@ -464,7 +731,7 @@ class TypeDescriber
         ?string $schemaType,
         &$kindOfType = null)
     {
-        $type_specification_variants = explode('|', $typeSpecification);
+        $type_specification_variants = $this->splitTopLevel($typeSpecification, '|');
 
         if (in_array('null', $type_specification_variants, true)) {
             $isNullableType = true;
@@ -481,7 +748,8 @@ class TypeDescriber
         $sub_type_schemas = [];
 
         foreach ($type_specification_variants as $subtypeSpecification) {
-            $sub_type_schemas[] = $this->generateSchemaForType(
+            $variantType = null;
+            $subTypeSchema = $this->generateSchemaForType(
                 $declaringClass,
                 $subtypeSpecification,
                 $defaultValue,
@@ -489,9 +757,19 @@ class TypeDescriber
                 $schemaType,
                 $variantType
             );
-            if ($kindOfType === null || $kindOfType < $variantType) {
+            if ($subTypeSchema !== null) {
+                $sub_type_schemas[] = $subTypeSchema;
+            }
+            if ($variantType !== null && ($kindOfType === null || $kindOfType < $variantType)) {
                 $kindOfType = $variantType;
             }
+        }
+
+        if ($sub_type_schemas === []) {
+            return null;
+        }
+        if (count($sub_type_schemas) === 1) {
+            return current($sub_type_schemas);
         }
 
         if ($schemaType !== null && $schemaType !== Schema::class) {
